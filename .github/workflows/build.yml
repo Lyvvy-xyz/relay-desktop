@@ -1,0 +1,152 @@
+name: Relay Buddy
+
+# Builds the desktop buddy (with the agent bundled inside it) for every desktop, and
+# publishes the installers as the rolling "buddy-latest" release.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "buddy/**"
+      - "agent/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, goos: windows, goarch: amd64, suffix: .exe }
+          - { os: macos-latest, target: aarch64-apple-darwin, goos: darwin, goarch: arm64, suffix: "" }
+          - { os: macos-latest, target: x86_64-apple-darwin, goos: darwin, goarch: amd64, suffix: "" }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, goos: linux, goarch: amd64, suffix: "" }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+
+      - name: Test and build the bundled agent
+        working-directory: agent
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          # The tests are platform-independent and make symlinks, which Windows runners refuse.
+          if [ "$RUNNER_OS" = Linux ]; then GOOS= GOARCH= go test ./...; fi
+          go build -trimpath -ldflags="-s -w" \
+            -o "../buddy/src-tauri/binaries/homelab-agent-${{ matrix.target }}${{ matrix.suffix }}" .
+
+      - name: Linux webview libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: buddy/src-tauri -> target
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build the buddy
+        working-directory: buddy
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm install --no-audit --no-fund
+          npx tauri icon app-icon.svg
+          # Every build is its own version, so installed buddies can tell they are behind.
+          config="{\"version\":\"0.3.${{ github.run_number }}\""
+          # Signed update bundles only once the signing key is a repository secret; until then the
+          # installers still build, they just cannot be offered as updates.
+          if [ -n "${TAURI_SIGNING_PRIVATE_KEY}" ]; then
+            config+=",\"bundle\":{\"createUpdaterArtifacts\":true}"
+          fi
+          npx tauri build --target ${{ matrix.target }} --config "${config}}"
+          # Both Macs name their update bundle the same; tell them apart before the release merges them.
+          for bundle in src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz; do
+            [ -e "${bundle}" ] || continue
+            renamed="${bundle%.app.tar.gz}_${{ matrix.target }}.app.tar.gz"
+            mv "${bundle}" "${renamed}"
+            mv "${bundle}.sig" "${renamed}.sig"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relay-buddy-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe.sig
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            buddy/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage.sig
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      # The updater's manifest: each platform's signed bundle, at its address in this release. Only
+      # signed builds get one.
+      - name: Write the update manifest
+        run: |
+          python3 - "0.3.${{ github.run_number }}" "https://github.com/${{ github.repository }}/releases/download/buddy-latest" <<'EOF'
+          import json, pathlib, sys
+          files = {path.name: path for path in pathlib.Path("installers").rglob("*") if path.is_file()}
+          patterns = {
+              "windows-x86_64": "-setup.exe",
+              "darwin-aarch64": "_aarch64-apple-darwin.app.tar.gz",
+              "darwin-x86_64": "_x86_64-apple-darwin.app.tar.gz",
+              "linux-x86_64": ".AppImage",
+          }
+          platforms = {}
+          for platform, suffix in patterns.items():
+              for name in files:
+                  if name.endswith(suffix) and f"{name}.sig" in files:
+                      # GitHub stores "Relay Buddy_..." as "Relay.Buddy_...": name it as it will be.
+                      signature = files[f"{name}.sig"].read_text().strip()
+                      platforms[platform] = {"signature": signature, "url": f"{sys.argv[2]}/{name.replace(' ', '.')}"}
+          if platforms:
+              manifest = {"version": sys.argv[1], "platforms": platforms}
+              pathlib.Path("installers/latest.json").write_text(json.dumps(manifest))
+          print("platforms:", sorted(platforms) or "none (no signing key yet)")
+          EOF
+
+      - name: Publish as the rolling buddy-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete buddy-latest --yes --cleanup-tag || true
+          # The artifacts arrive in per-format folders (nsis/, msi/, dmg/...): upload the files.
+          mapfile -t files < <(find installers -type f)
+          gh release create buddy-latest "${files[@]}" --prerelease \
+            --target "${{ github.sha }}" --title "Relay Buddy (latest)" \
+            --notes "Built from ${{ github.sha }}. Windows: run the -setup.exe (More info, Run anyway). Mac: open the .dmg, then right-click the app and choose Open the first time."

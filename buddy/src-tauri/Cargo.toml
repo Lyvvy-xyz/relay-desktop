@@ -1,0 +1,25 @@
+[package]
+name = "relay-buddy"
+version = "0.2.0"
+description = "Relay desktop buddy"
+edition = "2021"
+license = "AGPL-3.0-only"
+repository = "https://github.com/Lyvvy-xyz/relay-desktop"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# macos-private-api: the buddy's window is see-through, which macOS only allows through it.
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-shell = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

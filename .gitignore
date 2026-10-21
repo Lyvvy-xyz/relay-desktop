@@ -1,0 +1,5 @@
+node_modules/
+target/
+buddy/src-tauri/binaries/
+buddy/src-tauri/icons/
+buddy/src-tauri/gen/

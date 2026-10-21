@@ -1,0 +1,536 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+body {
+  display: flex;
+  flex-direction: column;
+}
+.dock {
+  flex: none;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dock:focus-visible {
+  outline-offset: -4px;
+}
+.machine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #a7a7ad;
+}
+.dock > * {
+  pointer-events: none;
+}
+.panel-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.head,
+.tabs {
+  flex: none;
+}
+.head {
+  position: relative;
+}
+.head button {
+  padding: 4px 5px;
+}
+.tabs [aria-selected="true"] {
+  background: #272729;
+  color: white;
+}
+#file-count {
+  display: none;
+}
+.view {
+  min-height: 0;
+  overflow: auto;
+}
+.view:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+}
+.conversation {
+  min-height: 0;
+}
+.message--user {
+  width: fit-content;
+  max-width: 80%;
+  margin: 0 0 22px auto;
+  padding: 11px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: #202022;
+  white-space: pre-wrap;
+}
+.message--assistant {
+  margin-bottom: 22px;
+  overflow-wrap: anywhere;
+}
+.message--assistant h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+.message--assistant a {
+  color: #75b9ff;
+}
+.message--pending {
+  opacity: 0.65;
+}
+.code-block {
+  border: 1px solid #343438;
+  background: #101012;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.code-head button {
+  font-size: 11px;
+  padding: 4px 7px;
+}
+.code-block pre {
+  white-space: pre;
+  overflow: auto;
+}
+.code-block code {
+  font: inherit;
+}
+.table-scroll {
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+}
+td,
+th {
+  border: 1px solid #343438;
+  padding: 5px 8px;
+}
+blockquote {
+  border-left: 2px solid #555;
+  margin: 12px 0;
+  padding-left: 12px;
+  color: #b9b9c0;
+}
+.composer,
+.turn-ticker,
+.typing {
+  flex: none;
+}
+.typing {
+  padding: 9px 20px;
+}
+.turn-ticker {
+  max-height: 160px;
+  overflow: auto;
+}
+.turn-ticker:not([hidden]) + .typing {
+  display: none;
+}
+#view-chat {
+  flex: 1;
+}
+.sessions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.session__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  margin-bottom: 6px;
+  text-align: left;
+}
+.session__title:hover {
+  background: none;
+}
+.session__name {
+  font-weight: 550;
+}
+.session__chip {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+.session__state {
+  margin-left: auto;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.session__state:before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.session__elapsed {
+  font-size: 11px;
+  color: #a7a7ad;
+}
+.session--working {
+  --state: #75b9ff;
+}
+.session--done {
+  --state: #7edca0;
+}
+.session--failed {
+  --state: #ff8b8b;
+}
+.session--idle {
+  --state: #a7a7ad;
+}
+.session__state,
+.session .step__state {
+  color: var(--state);
+}
+.step-ticker {
+  font-size: 12px;
+  color: #b9b9c0;
+}
+.step-ticker summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+}
+.step-ticker summary:after {
+  content: "⌄";
+  color: #9999a0;
+  margin-left: auto;
+}
+.step-ticker[open] summary:after {
+  content: "⌃";
+}
+.step__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.step__state {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.step--running {
+  color: #75b9ff;
+}
+.step--ok {
+  color: #7edca0;
+}
+.step--failed {
+  color: #ff8b8b;
+}
+.steps li {
+  align-items: center;
+  color: #b9b9c0;
+}
+.steps li > .step__state {
+  width: 6px;
+}
+.steps li > span:last-child {
+  width: auto;
+  color: inherit;
+}
+.activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.activity__group h2 {
+  font-size: 11px;
+  font-weight: 400;
+  color: #a7a7ad;
+  margin: 20px 0 0;
+}
+.activity--failed {
+  color: #ff8b8b;
+}
+.activity small {
+  color: #a7a7ad;
+}
+.files {
+  list-style: none;
+  margin: 0;
+}
+.file-chip {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.file-chip .filename {
+  overflow-wrap: anywhere;
+}
+.result:empty {
+  display: none;
+}
+.result--failed {
+  color: #ff8b8b;
+}
+.result--ok {
+  color: #7edca0;
+}
+.history summary {
+  cursor: pointer;
+}
+.history p {
+  font-size: 11px;
+}
+.menu {
+  position: absolute;
+  right: 12px;
+  top: 43px;
+  z-index: 5;
+  background: #151517;
+  border: 1px solid #353537;
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 24px #0008;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.menu button {
+  text-align: left;
+  border: 0;
+  background: none;
+  border-radius: 7px;
+}
+.menu__version {
+  padding: 6px 13px;
+  font-size: 11px;
+}
+.notice {
+  flex: none;
+  overflow: auto;
+}
+.notice p {
+  line-height: 1.5;
+}
+.panel-shell:has(#update-notice:not([hidden])) > .split {
+  display: none;
+}
+.panel-shell:has(#notice:not([hidden])) .conversation {
+  min-height: 80px;
+}
+.hljs-keyword,
+.hljs-selector-class {
+  color: #c7a9ed;
+}
+.hljs-string {
+  color: #7edca0;
+}
+.hljs-number,
+.hljs-literal {
+  color: #ffb365;
+}
+.hljs-comment {
+  color: #91919a;
+}
+.hljs-title {
+  color: #75b9ff;
+}
+
+.inputbox textarea:focus-visible {
+  outline: none;
+}
+.installed {
+  border-top: 1px solid #242426;
+  margin: 24px -24px -28px;
+  padding: 13px 20px;
+}
+.session .steps li > span:first-child {
+  width: 30px;
+  flex: none;
+  color: #e2e2e5;
+}
+.session .steps li > span:last-child {
+  overflow-wrap: anywhere;
+}
+.step-ticker time {
+  color: #a7a7ad;
+  font-size: 11px;
+  margin-left: auto;
+}
+.step-ticker summary:has(time):after {
+  margin-left: 0;
+}
+
+.step-ticker.step--running,
+.step-ticker.step--failed,
+.step-ticker.step--ok {
+  color: #b9b9c0;
+}
+.step-ticker.step--running > summary > .step__state {
+  color: #75b9ff;
+}
+.step-ticker.step--failed > summary > .step__state {
+  color: #ff8b8b;
+}
+.step-ticker.step--ok > summary > .step__state {
+  color: #7edca0;
+}
+
+/* Wide panel: sessions on the left, the chosen view on the right. */
+.split {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 0;
+  border-top: 1px solid #242426;
+}
+.side-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid #242426;
+}
+.side-pane .sessions {
+  flex: 1;
+  overflow-y: auto;
+}
+.side-pane .session--selected {
+  background: #141416;
+  box-shadow: inset 2px 0 #f5f5f5;
+}
+.main-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.main-pane .view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* One line per session in the narrow column; the full step list is a click away. */
+.side-pane .step-ticker summary .step__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.head .tabs {
+  gap: 2px;
+  padding: 0;
+  border: 0;
+}
+.head .tab {
+  flex: none;
+  padding: 6px 11px;
+  border-radius: 999px;
+}
+.message--assistant,
+.message--user {
+  max-width: 62ch;
+}
+
+/* Dropping down from the island and folding back into it. */
+.dock,
+.panel-shell {
+  transform-origin: 50% 0;
+}
+.panel-gone .dock,
+.panel-gone .panel-shell {
+  opacity: 0;
+}
+.panel-entering .dock,
+.panel-entering .panel-shell {
+  animation: panel-drop 180ms cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.panel-leaving .dock,
+.panel-leaving .panel-shell {
+  animation: panel-drop 160ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+}
+@keyframes panel-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scaleY(0.96);
+  }
+}
+.view:not([hidden]) {
+  animation: view-in 140ms ease-out;
+}
+@keyframes view-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-entering .dock,
+  .panel-entering .panel-shell,
+  .panel-leaving .dock,
+  .panel-leaving .panel-shell,
+  .view:not([hidden]) {
+    animation: none;
+  }
+}
+
+/* Watching Claude on this computer: Relay-only parts are hidden. */
+[data-source="claude"] [data-tab="activity"],
+[data-source="claude"] [data-tab="send"],
+[data-source="claude"] #show-wrong,
+[data-source="claude"] #chat-project,
+[data-source="claude"] #chat-chip,
+[data-source="claude"] #session-settings,
+[data-source="relay"] #new-claude-session {
+  display: none;
+}
+
+/* Starting a Claude Code session in a folder, and its permission asks in the chat. */
+.new-session {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #242426;
+}
+.new-session input {
+  min-width: 0;
+}
+.new-session button {
+  justify-self: end;
+}
+.ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, #ffb365 45%, #353537);
+  border-radius: 14px;
+  background: #121214;
+}
+.ask strong {
+  flex: 1 0 100%;
+  color: #ffb365;
+  font-size: 12px;
+}
+.ask code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}

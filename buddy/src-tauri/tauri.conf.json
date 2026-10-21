@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Relay Buddy",
+  "version": "0.2.0",
+  "identifier": "lan.homelab.buddy",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "buddy",
+        "title": "Relay Buddy",
+        "url": "index.html",
+        "width": 360,
+        "height": 6,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false,
+        "visible": false
+      },
+      {
+        "label": "panel",
+        "title": "Relay",
+        "url": "panel.html",
+        "width": 780,
+        "height": 520,
+        "minWidth": 640,
+        "minHeight": 420,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "resizable": true,
+        "visible": false,
+        "transparent": true,
+        "shadow": false,
+        "skipTaskbar": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": [
+      "binaries/homelab-agent"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUyMEFBQjRDRjNGN0UyMDMKUldRRDR2ZnpUS3NLNG8wWmZiYUN2L1QvaHZnQjExTGRoRWRiUW5kZkJrSEg2VTF6eHBDbHpuY2oK",
+      "endpoints": [
+        "https://github.com/Lyvvy-xyz/relay-desktop/releases/download/buddy-latest/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

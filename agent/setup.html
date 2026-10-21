@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Relay setup</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background: #242426;
+        color: #f5f5f5;
+        font:
+          13px/1.5 system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1536px;
+        margin: auto;
+        padding: 36px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 44px 32px;
+      }
+      .screen {
+        width: 440px;
+        max-width: 100%;
+        flex: none;
+      }
+      .label {
+        font-size: 12px;
+        color: #c1c1c5;
+        margin-bottom: 16px;
+      }
+      .small-screen {
+        width: 440px;
+        min-height: 205px;
+      }
+      .wide {
+        width: 620px;
+      }
+      .island {
+        background: #050505;
+        border: 1px solid #353537;
+        border-radius: 28px;
+        overflow: hidden;
+      }
+      .dock {
+        height: 44px;
+        width: 128px;
+        border-radius: 24px 24px 0 0;
+        background: #050505;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: relative;
+        z-index: 1;
+        margin-bottom: -1px;
+        font-weight: 600;
+      }
+      .frog {
+        width: 40px;
+        height: 40px;
+        shape-rendering: crispEdges;
+        flex: none;
+      }
+      .head {
+        height: 50px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 20px;
+      }
+      .head strong {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .muted,
+      small {
+        color: #a7a7ad;
+      }
+      .tiny {
+        font-size: 11px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .between {
+        justify-content: space-between;
+      }
+      .blue {
+        color: #75b9ff;
+      }
+      .orange {
+        color: #ffb365;
+      }
+      .green {
+        color: #7edca0;
+      }
+      .red {
+        color: #ff8b8b;
+      }
+      .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        background: currentColor;
+        border-radius: 50%;
+        flex: none;
+      }
+      .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .chip {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        background: #c7a9ed;
+        flex: none;
+      }
+      .chip.p {
+        background: #dbbf8f;
+      }
+      .chip.w {
+        background: #a5c6c7;
+      }
+      .chip.a {
+        background: #c3b8ac;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        border: 1px solid #373739;
+        background: #1a1a1c;
+        padding: 7px 13px;
+        border-radius: 999px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button:hover {
+        background: #303033;
+      }
+      button.primary {
+        background: #f5f5f5;
+        border-color: #f5f5f5;
+        color: #101010;
+        font-weight: 600;
+      }
+      button.quiet {
+        background: transparent;
+        border-color: transparent;
+        color: #bcbcc1;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid white;
+        outline-offset: 3px;
+      }
+      select,
+      input,
+      textarea {
+        background: #151517;
+        border: 1px solid #3a3a3e;
+        border-radius: 10px;
+        padding: 9px 11px;
+      }
+      textarea {
+        resize: vertical;
+        width: 100%;
+        min-height: 64px;
+      }
+      nav {
+        display: flex;
+        gap: 3px;
+        padding: 0 15px 14px;
+        border-bottom: 1px solid #242426;
+      }
+      nav button {
+        flex: 1;
+        border: 0;
+        background: transparent;
+        padding: 6px 9px;
+        font-size: 12px;
+        color: #aaaab0;
+      }
+      nav .selected {
+        background: #272729;
+        color: white;
+      }
+      .pad {
+        padding: 20px;
+      }
+      .pill {
+        width: 300px;
+        height: 44px;
+        border-radius: 999px;
+        background: #050505;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 0 14px 0 9px;
+        margin: 26px auto 0;
+        font-size: 11px;
+      }
+      .pill .frog {
+        width: 34px;
+        height: 34px;
+      }
+      .pill .dot {
+        margin-left: auto;
+      }
+      .peek {
+        width: 360px;
+        margin: auto;
+        border-radius: 25px;
+      }
+      .peek-body {
+        padding: 16px 18px;
+      }
+      .peek-body p {
+        margin: 10px 0 14px;
+        color: #c5c5ca;
+      }
+      .peek-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .peek-head .frog {
+        width: 42px;
+        height: 42px;
+      }
+      .peek-head strong {
+        font-size: 13px;
+      }
+      .peek-head small {
+        display: block;
+        font-size: 11px;
+      }
+      .peek-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: 52px;
+      }
+      .peek-actions button {
+        font-size: 12px;
+      }
+      .session {
+        padding: 17px 20px;
+        border-bottom: 1px solid #242426;
+      }
+      .session:last-child {
+        border-bottom: 0;
+      }
+      .session-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .session-title strong {
+        font-weight: 550;
+      }
+      .session-title time {
+        font-size: 11px;
+        color: #a7a7ad;
+        font-variant-numeric: tabular-nums;
+      }
+      .session .state {
+        margin-left: auto;
+      }
+      .ticker {
+        font-size: 12px;
+        color: #b9b9c0;
+      }
+      .ticker summary {
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+      }
+      .ticker summary::after {
+        content: "⌄";
+        color: #9999a0;
+        margin-left: auto;
+      }
+      .ticker[open] summary::after {
+        content: "⌃";
+      }
+      .ticker b {
+        font-weight: 500;
+      }
+      .steps {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 8px 12px;
+        background: #151517;
+        border-radius: 12px;
+        font-size: 11px;
+      }
+      .steps li {
+        display: flex;
+        gap: 7px;
+        padding: 5px 0;
+      }
+      .steps li > span {
+        width: 30px;
+        color: #e2e2e5;
+      }
+      .steps time {
+        margin-left: auto;
+        color: #91919a;
+      }
+      .panel-foot {
+        border-top: 1px solid #242426;
+        padding: 13px 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: #aaaab0;
+      }
+      .chat {
+        height: 590px;
+        display: flex;
+        flex-direction: column;
+      }
+      .chat nav {
+        flex-shrink: 0;
+      }
+      .conversation {
+        padding: 20px;
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        font-size: 14px;
+        line-height: 1.65;
+      }
+      .message-meta {
+        font-size: 11px;
+        color: #a7a7ad;
+        margin-bottom: 6px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .user {
+        background: #202022;
+        border-radius: 16px 16px 4px 16px;
+        margin: 0 0 22px 30px;
+        padding: 11px 14px;
+      }
+      .conversation p {
+        margin: 0 0 12px;
+      }
+      .conversation ul {
+        padding-left: 19px;
+        margin: 8px 0 15px;
+      }
+      .code {
+        border: 1px solid #343438;
+        background: #101012;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 12px;
+      }
+      .code-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 10px;
+        background: #1b1b1e;
+        font-size: 11px;
+        color: #b8b8be;
+      }
+      .code-head button {
+        font-size: 11px;
+        padding: 4px 7px;
+      }
+      pre {
+        margin: 0;
+        padding: 12px 14px;
+        overflow: auto;
+        font:
+          12px/1.7 ui-monospace,
+          SFMono-Regular,
+          Consolas,
+          monospace;
+      }
+      .turn-ticker {
+        padding: 9px 20px;
+        border-top: 1px solid #242426;
+      }
+      .composer {
+        padding: 0 16px 16px;
+      }
+      .model {
+        padding: 10px 3px;
+        font-size: 11px;
+      }
+      .model select {
+        background: none;
+        border: 0;
+        padding: 2px 0;
+        max-width: 145px;
+        font-size: 11px;
+      }
+      .inputbox {
+        border: 1px solid #414145;
+        background: #151517;
+        border-radius: 18px;
+        padding: 9px;
+      }
+      .inputbox textarea {
+        border: 0;
+        padding: 4px;
+        background: none;
+        resize: none;
+        height: 49px;
+        min-height: 49px;
+      }
+      .inputbox button {
+        font-size: 12px;
+        padding: 6px 12px;
+      }
+      .hint {
+        margin-top: 8px;
+        padding-left: 4px;
+      }
+      .log {
+        list-style: none;
+        margin: 14px 0 0;
+        padding: 0;
+      }
+      .log li {
+        display: grid;
+        grid-template-columns: 37px 17px 1fr;
+        gap: 10px;
+        padding: 14px 0;
+        border-bottom: 1px solid #252527;
+      }
+      .log li:last-child {
+        border: 0;
+      }
+      .log time {
+        color: #aaaab0;
+        font-size: 11px;
+      }
+      .log small {
+        display: block;
+        font-size: 11px;
+        margin-top: 3px;
+      }
+      .log svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        margin-top: 3px;
+      }
+      .log details {
+        font-size: 11px;
+        margin-top: 7px;
+      }
+      .log summary {
+        cursor: pointer;
+      }
+      .filters {
+        display: flex;
+        gap: 8px;
+      }
+      .filters select {
+        font-size: 12px;
+        min-width: 0;
+      }
+      .field-label {
+        display: block;
+        font-size: 12px;
+        margin: 16px 0 7px;
+      }
+      .full {
+        width: 100%;
+      }
+      .files {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 4px 0;
+      }
+      .file-chip {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        background: #1b1b1e;
+        border: 1px solid #363639;
+        border-radius: 10px;
+        padding: 7px 8px 7px 11px;
+        font-size: 12px;
+      }
+      .file-chip button {
+        padding: 0 4px;
+        border: 0;
+        background: none;
+        color: #aaaab0;
+      }
+      .history {
+        padding: 14px 20px;
+        border-top: 1px solid #29292c;
+        font-size: 12px;
+        color: #aaaab0;
+      }
+      .drop-stage {
+        height: 190px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 13px;
+      }
+      .drop-stage .frog {
+        width: 108px;
+        height: 108px;
+      }
+      .drop-stage p {
+        font-size: 12px;
+        color: #c1c1c6;
+        margin: 0;
+      }
+      .done-mark {
+        display: inline-grid;
+        place-items: center;
+        width: 21px;
+        height: 21px;
+        border-radius: 50%;
+        background: #7edca0;
+        color: #082414;
+        font-size: 13px;
+        margin-left: -18px;
+        align-self: flex-end;
+        margin-bottom: 6px;
+      }
+      .idle-stage {
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .idle-stage .frog {
+        width: 68px;
+        height: 68px;
+      }
+      .setup {
+        width: 620px;
+        max-width: 100%;
+        height: 700px;
+        border-radius: 22px;
+        display: flex;
+        flex-direction: column;
+      }
+      .setup .head {
+        height: 57px;
+        border-bottom: 1px solid #29292c;
+      }
+      .setup .head .frog {
+        width: 36px;
+        height: 36px;
+      }
+      .setup-nav {
+        display: flex;
+        gap: 10px;
+        padding: 18px 30px;
+        border-bottom: 1px solid #29292c;
+        font-size: 12px;
+        color: #9999a1;
+      }
+      .setup-nav span {
+        padding: 6px 13px;
+        border-radius: 999px;
+      }
+      .setup-nav .current {
+        background: #252527;
+        color: #fff;
+      }
+      .setup-body {
+        padding: 30px;
+        flex: 1;
+        min-height: 0;
+      }
+      .setup h2 {
+        font-size: 23px;
+        letter-spacing: -0.5px;
+        font-weight: 600;
+        margin: 0 0 13px;
+      }
+      .setup p {
+        color: #b1b1b8;
+        max-width: 480px;
+        margin: 0 0 22px;
+        line-height: 1.7;
+      }
+      .pair-code {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+      }
+      .pair-code input {
+        width: 49px;
+        height: 58px;
+        padding: 0;
+        text-align: center;
+        font:
+          24px ui-monospace,
+          monospace;
+      }
+      .pair-code input:nth-child(5) {
+        margin-left: 10px;
+      }
+      .setup details {
+        margin-top: 35px;
+        font-size: 12px;
+      }
+      .setup summary {
+        cursor: pointer;
+        color: #c1c1c7;
+      }
+      .setup-footer {
+        padding: 19px 30px;
+        border-top: 1px solid #29292c;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .folders {
+        border: 1px solid #333337;
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .folder {
+        padding: 13px 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .folder + .folder {
+        border-top: 1px solid #333337;
+      }
+      .folder small {
+        display: block;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      .folder button {
+        font-size: 11px;
+      }
+      .setting {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border-top: 1px solid #333337;
+        margin-top: 25px;
+        padding-top: 20px;
+      }
+      .setting p {
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .switch {
+        appearance: none;
+        width: 39px;
+        height: 23px;
+        padding: 3px;
+        border-radius: 999px;
+        background: #343438;
+        flex: none;
+        cursor: pointer;
+      }
+      .switch:after {
+        content: "";
+        display: block;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #eee;
+      }
+      .switch:checked {
+        background: #ededed;
+      }
+      .switch:checked:after {
+        background: #171719;
+        transform: translateX(15px);
+      }
+      .notice h2 {
+        font-size: 18px;
+        margin: 0 0 9px;
+        font-weight: 600;
+      }
+      .notice p {
+        color: #b5b5bd;
+        margin: 0 0 20px;
+      }
+      .notice {
+        padding: 28px 24px;
+      }
+      .notice .row {
+        margin-top: 22px;
+      }
+      .empty-chat {
+        height: 135px;
+        display: grid;
+        place-items: center;
+        color: #aaaab0;
+        font-size: 12px;
+      }
+      body {
+        padding: 24px;
+      }
+      main.setup {
+        height: 700px;
+        min-height: 700px;
+        margin: auto;
+        padding: 0;
+        gap: 0;
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: stretch;
+      }
+      .setup-nav {
+        flex: none;
+        margin: 0;
+        list-style: none;
+        background: none;
+        border-radius: 0;
+      }
+      .setup-nav li {
+        display: block;
+      }
+      .setup-nav li {
+        padding: 6px 13px;
+        border-radius: 999px;
+      }
+      .setup-nav [aria-current="step"] {
+        background: #252527;
+        color: white;
+      }
+      .setup-body {
+        overflow: auto;
+      }
+      .panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+      .setup-footer {
+        flex: none;
+      }
+      .setup .head {
+        flex: none;
+      }
+      #pair-form {
+        display: contents;
+      }
+      .pair-code {
+        margin: 12px 0;
+      }
+      .pair-code input {
+        min-width: 0;
+      }
+      .pair-code[aria-invalid="true"] input {
+        border-color: #ff8b8b;
+      }
+      .error {
+        color: #ff8b8b;
+        font-size: 12px;
+      }
+      .error:empty {
+        display: none;
+      }
+      .folders {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .folder > span {
+        flex: 1;
+        min-width: 0;
+      }
+      .folder code {
+        display: block;
+        font:
+          11px/1.5 system-ui,
+          sans-serif;
+        color: #a7a7ad;
+        overflow-wrap: anywhere;
+      }
+      .button--quiet,
+      .button--danger {
+        background: transparent;
+        border-color: transparent;
+        color: #bcbcc1;
+      }
+      .button--primary {
+        background: #f5f5f5;
+        border-color: #f5f5f5;
+        color: #101010;
+        font-weight: 600;
+      }
+      #suggestions {
+        margin-top: 12px;
+      }
+      #suggestions .chip {
+        display: inline-block;
+        width: auto;
+        height: auto;
+        background: transparent;
+        border: 0;
+        padding: 7px 13px;
+        font-size: 13px;
+        color: #bcbcc1;
+      }
+      .switch {
+        border: 0;
+      }
+      .switch[aria-checked="true"] {
+        background: #ededed;
+      }
+      .switch[aria-checked="true"]:after {
+        background: #171719;
+        transform: translateX(15px);
+      }
+      #server {
+        width: 100%;
+      }
+      #lede:empty {
+        display: none;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .connected {
+        margin-bottom: 24px;
+      }
+      .setup .tiny {
+        font-size: 11px;
+      }
+      .setup-footer .tiny {
+        margin: 0;
+      }
+      .setup details {
+        margin-top: 35px;
+      }
+      .setup p {
+        margin-bottom: 22px;
+      }
+      .setting p {
+        margin: 4px 0 0;
+      }
+      .head button {
+        padding: 7px 10px;
+      }
+      @media (max-width: 600px) {
+        body {
+          padding: 10px;
+        }
+        .setup {
+          min-height: 700px;
+          height: auto;
+        }
+        .pair-code input {
+          width: calc((100% - 61px) / 8);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute; overflow: hidden" aria-hidden="true">
+      <defs>
+        <symbol id="frog" viewBox="0 0 40 40">
+          <path
+            fill="#10241e"
+            d="M11 14h1v1h-1zM12 14h1v1h-1zM13 14h1v1h-1zM14 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM27 14h1v1h-1zM28 14h1v1h-1zM10 15h1v1h-1zM15 15h1v1h-1zM24 15h1v1h-1zM29 15h1v1h-1zM9 16h1v1h-1zM16 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM20 16h1v1h-1zM21 16h1v1h-1zM22 16h1v1h-1zM23 16h1v1h-1zM30 16h1v1h-1zM8 17h1v1h-1zM31 17h1v1h-1zM8 18h1v1h-1zM31 18h1v1h-1zM7 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM26 19h1v1h-1zM27 19h1v1h-1zM32 19h1v1h-1zM6 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM26 20h1v1h-1zM27 20h1v1h-1zM33 20h1v1h-1zM5 21h1v1h-1zM34 21h1v1h-1zM4 22h1v1h-1zM35 22h1v1h-1zM4 23h1v1h-1zM18 23h1v1h-1zM22 23h1v1h-1zM35 23h1v1h-1zM3 24h1v1h-1zM36 24h1v1h-1zM3 25h1v1h-1zM28 25h1v1h-1zM36 25h1v1h-1zM3 26h1v1h-1zM12 26h1v1h-1zM13 26h1v1h-1zM14 26h1v1h-1zM15 26h1v1h-1zM16 26h1v1h-1zM17 26h1v1h-1zM18 26h1v1h-1zM19 26h1v1h-1zM20 26h1v1h-1zM21 26h1v1h-1zM22 26h1v1h-1zM23 26h1v1h-1zM24 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM36 26h1v1h-1zM3 27h1v1h-1zM36 27h1v1h-1zM3 28h1v1h-1zM36 28h1v1h-1zM4 29h1v1h-1zM35 29h1v1h-1zM4 30h1v1h-1zM35 30h1v1h-1zM5 31h1v1h-1zM34 31h1v1h-1zM6 32h1v1h-1zM33 32h1v1h-1zM7 33h1v1h-1zM8 33h1v1h-1zM31 33h1v1h-1zM32 33h1v1h-1zM9 34h1v1h-1zM30 34h1v1h-1zM10 35h1v1h-1zM11 35h1v1h-1zM12 35h1v1h-1zM28 35h1v1h-1zM29 35h1v1h-1zM13 36h1v1h-1zM14 36h1v1h-1zM15 36h1v1h-1zM16 36h1v1h-1zM17 36h1v1h-1zM18 36h1v1h-1zM19 36h1v1h-1zM20 36h1v1h-1zM21 36h1v1h-1zM22 36h1v1h-1zM23 36h1v1h-1zM24 36h1v1h-1zM25 36h1v1h-1zM26 36h1v1h-1zM27 36h1v1h-1z"
+          />
+          <path
+            fill="#6fbf7f"
+            d="M11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM14 15h1v1h-1zM25 15h1v1h-1zM26 15h1v1h-1zM27 15h1v1h-1zM28 15h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM12 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM24 16h1v1h-1zM25 16h1v1h-1zM26 16h1v1h-1zM28 16h1v1h-1zM29 16h1v1h-1zM9 17h1v1h-1zM10 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM14 17h1v1h-1zM15 17h1v1h-1zM16 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM24 17h1v1h-1zM25 17h1v1h-1zM26 17h1v1h-1zM27 17h1v1h-1zM28 17h1v1h-1zM29 17h1v1h-1zM30 17h1v1h-1zM9 18h1v1h-1zM10 18h1v1h-1zM16 18h1v1h-1zM17 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM20 18h1v1h-1zM21 18h1v1h-1zM22 18h1v1h-1zM23 18h1v1h-1zM24 18h1v1h-1zM30 18h1v1h-1zM8 19h1v1h-1zM9 19h1v1h-1zM17 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM23 19h1v1h-1zM31 19h1v1h-1zM7 20h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM19 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM30 20h1v1h-1zM31 20h1v1h-1zM32 20h1v1h-1zM6 21h1v1h-1zM7 21h1v1h-1zM8 21h1v1h-1zM9 21h1v1h-1zM10 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM21 21h1v1h-1zM22 21h1v1h-1zM23 21h1v1h-1zM24 21h1v1h-1zM30 21h1v1h-1zM31 21h1v1h-1zM32 21h1v1h-1zM33 21h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM9 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM12 22h1v1h-1zM14 22h1v1h-1zM15 22h1v1h-1zM16 22h1v1h-1zM17 22h1v1h-1zM18 22h1v1h-1zM19 22h1v1h-1zM20 22h1v1h-1zM21 22h1v1h-1zM22 22h1v1h-1zM23 22h1v1h-1zM24 22h1v1h-1zM25 22h1v1h-1zM26 22h1v1h-1zM28 22h1v1h-1zM29 22h1v1h-1zM30 22h1v1h-1zM31 22h1v1h-1zM32 22h1v1h-1zM33 22h1v1h-1zM34 22h1v1h-1zM5 23h1v1h-1zM6 23h1v1h-1zM7 23h1v1h-1zM8 23h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM11 23h1v1h-1zM12 23h1v1h-1zM13 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM16 23h1v1h-1zM17 23h1v1h-1zM19 23h1v1h-1zM20 23h1v1h-1zM21 23h1v1h-1zM23 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM26 23h1v1h-1zM27 23h1v1h-1zM28 23h1v1h-1zM29 23h1v1h-1zM30 23h1v1h-1zM31 23h1v1h-1zM32 23h1v1h-1zM33 23h1v1h-1zM34 23h1v1h-1zM4 24h1v1h-1zM5 24h1v1h-1zM6 24h1v1h-1zM7 24h1v1h-1zM8 24h1v1h-1zM9 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM12 24h1v1h-1zM13 24h1v1h-1zM14 24h1v1h-1zM15 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM18 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM25 24h1v1h-1zM26 24h1v1h-1zM27 24h1v1h-1zM28 24h1v1h-1zM29 24h1v1h-1zM30 24h1v1h-1zM31 24h1v1h-1zM32 24h1v1h-1zM33 24h1v1h-1zM34 24h1v1h-1zM35 24h1v1h-1zM4 25h1v1h-1zM5 25h1v1h-1zM6 25h1v1h-1zM7 25h1v1h-1zM8 25h1v1h-1zM9 25h1v1h-1zM10 25h1v1h-1zM11 25h1v1h-1zM12 25h1v1h-1zM13 25h1v1h-1zM14 25h1v1h-1zM15 25h1v1h-1zM16 25h1v1h-1zM17 25h1v1h-1zM18 25h1v1h-1zM19 25h1v1h-1zM20 25h1v1h-1zM21 25h1v1h-1zM22 25h1v1h-1zM23 25h1v1h-1zM24 25h1v1h-1zM25 25h1v1h-1zM26 25h1v1h-1zM27 25h1v1h-1zM29 25h1v1h-1zM30 25h1v1h-1zM31 25h1v1h-1zM32 25h1v1h-1zM33 25h1v1h-1zM34 25h1v1h-1zM35 25h1v1h-1zM4 26h1v1h-1zM5 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM8 26h1v1h-1zM9 26h1v1h-1zM10 26h1v1h-1zM11 26h1v1h-1zM28 26h1v1h-1zM29 26h1v1h-1zM30 26h1v1h-1zM31 26h1v1h-1zM32 26h1v1h-1zM33 26h1v1h-1zM34 26h1v1h-1zM35 26h1v1h-1zM4 27h1v1h-1zM5 27h1v1h-1zM6 27h1v1h-1zM7 27h1v1h-1zM8 27h1v1h-1zM9 27h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM12 27h1v1h-1zM13 27h1v1h-1zM26 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM29 27h1v1h-1zM30 27h1v1h-1zM31 27h1v1h-1zM32 27h1v1h-1zM33 27h1v1h-1zM34 27h1v1h-1zM35 27h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM7 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM10 28h1v1h-1zM11 28h1v1h-1zM28 28h1v1h-1zM29 28h1v1h-1zM30 28h1v1h-1zM31 28h1v1h-1zM32 28h1v1h-1zM33 28h1v1h-1zM34 28h1v1h-1zM35 28h1v1h-1zM5 29h1v1h-1zM6 29h1v1h-1zM7 29h1v1h-1zM8 29h1v1h-1zM9 29h1v1h-1zM30 29h1v1h-1zM31 29h1v1h-1zM32 29h1v1h-1zM33 29h1v1h-1zM34 29h1v1h-1zM5 30h1v1h-1zM6 30h1v1h-1zM7 30h1v1h-1zM8 30h1v1h-1zM31 30h1v1h-1zM32 30h1v1h-1zM33 30h1v1h-1zM34 30h1v1h-1zM6 31h1v1h-1zM7 31h1v1h-1zM8 31h1v1h-1zM31 31h1v1h-1zM32 31h1v1h-1zM33 31h1v1h-1zM7 32h1v1h-1zM8 32h1v1h-1zM31 32h1v1h-1zM32 32h1v1h-1zM9 33h1v1h-1zM30 33h1v1h-1z"
+          />
+          <path
+            fill="#f4faf7"
+            d="M13 16h1v1h-1zM27 16h1v1h-1zM11 18h1v1h-1zM12 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM25 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM29 18h1v1h-1zM10 19h1v1h-1zM11 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM24 19h1v1h-1zM25 19h1v1h-1zM28 19h1v1h-1zM29 19h1v1h-1zM30 19h1v1h-1zM11 20h1v1h-1zM14 20h1v1h-1zM15 20h1v1h-1zM25 20h1v1h-1zM28 20h1v1h-1zM29 20h1v1h-1zM11 21h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM25 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM28 21h1v1h-1zM29 21h1v1h-1zM13 22h1v1h-1zM27 22h1v1h-1z"
+          />
+          <path
+            fill="#d4efb8"
+            d="M14 27h1v1h-1zM15 27h1v1h-1zM16 27h1v1h-1zM17 27h1v1h-1zM18 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM21 27h1v1h-1zM22 27h1v1h-1zM23 27h1v1h-1zM24 27h1v1h-1zM25 27h1v1h-1zM12 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM15 28h1v1h-1zM16 28h1v1h-1zM17 28h1v1h-1zM18 28h1v1h-1zM19 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM23 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM26 28h1v1h-1zM27 28h1v1h-1zM10 29h1v1h-1zM11 29h1v1h-1zM12 29h1v1h-1zM13 29h1v1h-1zM14 29h1v1h-1zM15 29h1v1h-1zM16 29h1v1h-1zM17 29h1v1h-1zM18 29h1v1h-1zM19 29h1v1h-1zM20 29h1v1h-1zM21 29h1v1h-1zM22 29h1v1h-1zM23 29h1v1h-1zM24 29h1v1h-1zM25 29h1v1h-1zM26 29h1v1h-1zM27 29h1v1h-1zM28 29h1v1h-1zM29 29h1v1h-1zM9 30h1v1h-1zM10 30h1v1h-1zM11 30h1v1h-1zM12 30h1v1h-1zM13 30h1v1h-1zM14 30h1v1h-1zM15 30h1v1h-1zM16 30h1v1h-1zM17 30h1v1h-1zM18 30h1v1h-1zM19 30h1v1h-1zM20 30h1v1h-1zM21 30h1v1h-1zM22 30h1v1h-1zM23 30h1v1h-1zM24 30h1v1h-1zM25 30h1v1h-1zM26 30h1v1h-1zM27 30h1v1h-1zM28 30h1v1h-1zM29 30h1v1h-1zM30 30h1v1h-1zM9 31h1v1h-1zM10 31h1v1h-1zM11 31h1v1h-1zM12 31h1v1h-1zM13 31h1v1h-1zM14 31h1v1h-1zM15 31h1v1h-1zM16 31h1v1h-1zM17 31h1v1h-1zM18 31h1v1h-1zM19 31h1v1h-1zM20 31h1v1h-1zM21 31h1v1h-1zM22 31h1v1h-1zM23 31h1v1h-1zM24 31h1v1h-1zM25 31h1v1h-1zM26 31h1v1h-1zM27 31h1v1h-1zM28 31h1v1h-1zM29 31h1v1h-1zM30 31h1v1h-1zM9 32h1v1h-1zM10 32h1v1h-1zM11 32h1v1h-1zM12 32h1v1h-1zM13 32h1v1h-1zM14 32h1v1h-1zM15 32h1v1h-1zM16 32h1v1h-1zM17 32h1v1h-1zM18 32h1v1h-1zM19 32h1v1h-1zM20 32h1v1h-1zM21 32h1v1h-1zM22 32h1v1h-1zM23 32h1v1h-1zM24 32h1v1h-1zM25 32h1v1h-1zM26 32h1v1h-1zM27 32h1v1h-1zM28 32h1v1h-1zM29 32h1v1h-1zM30 32h1v1h-1zM10 33h1v1h-1zM11 33h1v1h-1zM12 33h1v1h-1zM13 33h1v1h-1zM14 33h1v1h-1zM15 33h1v1h-1zM16 33h1v1h-1zM17 33h1v1h-1zM18 33h1v1h-1zM19 33h1v1h-1zM20 33h1v1h-1zM21 33h1v1h-1zM22 33h1v1h-1zM23 33h1v1h-1zM24 33h1v1h-1zM25 33h1v1h-1zM26 33h1v1h-1zM27 33h1v1h-1zM28 33h1v1h-1zM29 33h1v1h-1zM12 34h1v1h-1zM13 34h1v1h-1zM14 34h1v1h-1zM15 34h1v1h-1zM16 34h1v1h-1zM17 34h1v1h-1zM18 34h1v1h-1zM19 34h1v1h-1zM20 34h1v1h-1zM21 34h1v1h-1zM22 34h1v1h-1zM23 34h1v1h-1zM24 34h1v1h-1zM25 34h1v1h-1zM26 34h1v1h-1zM27 34h1v1h-1zM16 35h1v1h-1zM17 35h1v1h-1zM18 35h1v1h-1zM19 35h1v1h-1zM20 35h1v1h-1zM21 35h1v1h-1zM22 35h1v1h-1zM23 35h1v1h-1zM24 35h1v1h-1z"
+          />
+          <path
+            fill="#4b9a63"
+            d="M10 34h1v1h-1zM11 34h1v1h-1zM28 34h1v1h-1zM29 34h1v1h-1zM13 35h1v1h-1zM14 35h1v1h-1zM15 35h1v1h-1zM25 35h1v1h-1zM26 35h1v1h-1zM27 35h1v1h-1z"
+          />
+        </symbol>
+      </defs>
+    </svg>
+    <main class="island setup">
+      <header class="head">
+        <svg class="frog" viewBox="0 0 40 40" aria-hidden="true"><use href="#frog" /></svg>
+        <div>
+          <strong id="title">Relay setup</strong>
+          <p id="lede"></p>
+        </div>
+        <span class="grow"></span
+        ><button type="button" class="quiet" id="setup-close" aria-label="Close setup">×</button>
+      </header>
+      <ol class="setup-nav steps">
+        <li id="step-pair" aria-current="step">Pair this computer</li>
+        <li id="step-folders">Shared folders</li>
+      </ol>
+      <section class="panel" id="pair-panel">
+        <form id="pair-form">
+          <div class="setup-body">
+            <h2>Pair this computer</h2>
+            <p>In the dashboard, open<br /><strong>Machines → Create pairing code</strong>.</p>
+            <div class="field-label" id="pair-label">Pairing code</div>
+            <div class="pair-code" id="code" role="group" aria-labelledby="pair-label"></div>
+            <p class="tiny">Connects automatically when all 8 characters are entered.</p>
+            <div class="error" id="pair-error" role="alert"></div>
+            <details id="server-details">
+              <summary>Dashboard address</summary>
+              <label class="field-label" for="server">Address</label
+              ><input type="text" id="server" spellcheck="false" placeholder="http://192.0.2.10:3000" />
+            </details>
+          </div>
+          <footer class="setup-footer">
+            <span class="tiny muted grow">Relay starts when you log in.</span
+            ><button class="quiet" type="button" id="keep" hidden>Keep the current pairing</button
+            ><button class="primary" type="submit" id="pair-button" disabled>Connect</button>
+          </footer>
+        </form>
+      </section>
+      <section class="panel" id="folders-panel" hidden>
+        <div class="setup-body">
+          <div class="row green tiny connected">
+            <span class="dot"></span
+            ><span><span id="machine-name"></span> · Agent running · Starts at login</span>
+          </div>
+          <h2>Shared folders</h2>
+          <p>
+            Projects can read and add files here. Existing files can only be edited if you drop them on the
+            frog.
+          </p>
+          <ul class="folders" id="folders"></ul>
+          <div class="row" id="suggestions"></div>
+          <label class="field-label" for="folder">Add folder</label>
+          <form class="row" id="folder-form">
+            <input class="grow" type="text" id="folder" spellcheck="false" placeholder="Folder path" /><button
+              type="submit"
+            >
+              Add
+            </button>
+          </form>
+          <div class="setting">
+            <div class="grow">
+              <label for="screenshots">Screenshots</label>
+              <p>Allow projects to capture this screen.</p>
+            </div>
+            <button
+              class="switch"
+              type="button"
+              role="switch"
+              id="screenshots"
+              aria-checked="false"
+              aria-label="Allow screenshots"
+            ></button>
+          </div>
+          <div class="error" id="access-error" role="alert"></div>
+        </div>
+        <footer class="setup-footer">
+          <button class="quiet" type="button" id="pair-again">Pair again</button><span class="grow"></span
+          ><button class="primary" type="button" id="done">Done</button>
+        </footer>
+      </section>
+    </main>
+    <script>
+      const token = new URLSearchParams(location.search).get("t") || "";
+      const byId = (id) => document.getElementById(id);
+      const CODE_LENGTH = 8;
+      const CODE_CHARACTER = /[A-Z2-9]/;
+
+      async function call(path, body) {
+        let response;
+        try {
+          response = await fetch(path, {
+            method: body === undefined ? "GET" : "POST",
+            headers: { "X-Setup-Token": token, "Content-Type": "application/json" },
+            body: body === undefined ? undefined : JSON.stringify(body),
+          });
+        } catch {
+          throw new Error("Setup stopped answering. Open it again from Relay's ⋯ menu.");
+        }
+        const reply = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(friendly(reply.error || response.statusText));
+        return reply;
+      }
+
+      // The few errors people actually hit, said plainly.
+      function friendly(message) {
+        if (/connection refused|no such host|timeout|dial tcp/i.test(message)) {
+          return "Couldn't reach the dashboard. Check this computer is on your home network, and the address under Dashboard address.";
+        }
+        return message.charAt(0).toUpperCase() + message.slice(1);
+      }
+
+      // ---- The code: eight boxes that move on as you type and take a pasted code whole ----------
+
+      const cells = Array.from({ length: CODE_LENGTH }, (_, index) => {
+        const cell = document.createElement("input");
+        Object.assign(cell, {
+          type: "text",
+          maxLength: CODE_LENGTH,
+          autocomplete: "off",
+          spellcheck: false,
+          placeholder: " ",
+        });
+        cell.setAttribute("autocapitalize", "characters");
+        cell.setAttribute("aria-label", `Character ${index + 1}`);
+        return cell;
+      });
+      byId("code").append(...cells);
+      const code = () => cells.map((cell) => cell.value).join("");
+
+      function fillFrom(index, text) {
+        const characters = [...text.toUpperCase()].filter((character) => CODE_CHARACTER.test(character));
+        let at = index;
+        for (const character of characters) {
+          if (at >= CODE_LENGTH) break;
+          cells[at].value = character;
+          at += 1;
+        }
+        cells[Math.min(at, CODE_LENGTH - 1)].focus();
+        codeChanged();
+      }
+
+      function codeChanged() {
+        byId("code").removeAttribute("aria-invalid");
+        byId("pair-button").disabled = code().length !== CODE_LENGTH;
+        if (code().length === CODE_LENGTH && !byId("pair-button").dataset.busy)
+          byId("pair-form").requestSubmit();
+      }
+
+      cells.forEach((cell, index) => {
+        cell.addEventListener("input", () => {
+          const typed = cell.value;
+          cell.value = "";
+          fillFrom(index, typed);
+        });
+        cell.addEventListener("keydown", (event) => {
+          if (event.key === "Backspace" && !cell.value && index > 0) {
+            cells[index - 1].value = "";
+            cells[index - 1].focus();
+            codeChanged();
+            event.preventDefault();
+          } else if (event.key === "ArrowLeft" && index > 0) {
+            cells[index - 1].focus();
+          } else if (event.key === "ArrowRight" && index < CODE_LENGTH - 1) {
+            cells[index + 1].focus();
+          }
+        });
+        cell.addEventListener("paste", (event) => {
+          event.preventDefault();
+          fillFrom(index, event.clipboardData.getData("text"));
+        });
+        cell.addEventListener("focus", () => cell.select());
+      });
+
+      // ---- Steps ---------------------------------------------------------------------------------
+
+      function showStep(name) {
+        const onFolders = name === "folders";
+        byId("pair-panel").hidden = onFolders;
+        byId("folders-panel").hidden = !onFolders;
+        byId("step-pair").classList.toggle("steps--done", onFolders);
+        byId(onFolders ? "step-pair" : "step-folders").removeAttribute("aria-current");
+        byId(onFolders ? "step-folders" : "step-pair").setAttribute("aria-current", "step");
+        byId("title").textContent = "Relay setup";
+        byId("lede").textContent = "";
+        if (!onFolders) cells[Math.min(code().length, CODE_LENGTH - 1)].focus();
+      }
+
+      function render(state) {
+        byId("server").value ||= state.server;
+        byId("server-details").open = !byId("server").value;
+        byId("keep").hidden = !state.paired;
+        byId("machine-name").textContent = state.machine || "this computer";
+
+        byId("folders").replaceChildren(
+          ...state.folders.map((folder) => {
+            const row = document.createElement("li");
+            row.className = "folder";
+            const path = document.createElement("span");
+            const full = document.createElement("code");
+            full.textContent = folder;
+            path.append(folder.split(/[\\/]/).filter(Boolean).pop() || folder, full);
+            const remove = document.createElement("button");
+            remove.className = "button button--danger button--compact";
+            remove.type = "button";
+            remove.textContent = "Remove";
+            remove.setAttribute("aria-label", `Remove ${folder}`);
+            remove.onclick = () => change("/api/folders", { folder, approve: false });
+            row.append(path, remove);
+            return row;
+          }),
+        );
+        byId("suggestions").replaceChildren(
+          ...state.suggestions.map((suggestion) => {
+            const chip = document.createElement("button");
+            chip.className = "chip";
+            chip.type = "button";
+            chip.textContent = `+ ${suggestion.label}`;
+            chip.title = suggestion.path;
+            chip.onclick = () => change("/api/folders", { folder: suggestion.path, approve: true });
+            return chip;
+          }),
+        );
+        byId("screenshots").setAttribute("aria-checked", String(state.screenshots));
+      }
+
+      async function change(path, body) {
+        byId("access-error").textContent = "";
+        try {
+          render(await call(path, body));
+        } catch (error) {
+          byId("access-error").textContent = error.message;
+        }
+      }
+
+      async function busy(button, label, work) {
+        const original = button.innerHTML;
+        button.disabled = true;
+        button.dataset.busy = "1";
+        button.innerHTML = `<span class="spinner" aria-hidden="true"></span>${label}`;
+        try {
+          await work();
+        } finally {
+          button.innerHTML = original;
+          button.disabled = false;
+          delete button.dataset.busy;
+        }
+      }
+
+      // Pairing goes straight on to starting the agent; there is no separate start step.
+      async function connect(pairFirst) {
+        byId("pair-error").textContent = "";
+        const button = pairFirst ? byId("pair-button") : byId("keep");
+        try {
+          await busy(button, pairFirst ? "Connecting…" : "Starting…", async () => {
+            if (pairFirst)
+              render(await call("/api/pair", { code: code(), server: byId("server").value.trim() }));
+            await call("/api/finish", {});
+          });
+          showStep("folders");
+        } catch (error) {
+          byId("pair-error").textContent = error.message;
+          if (pairFirst) {
+            byId("code").setAttribute("aria-invalid", "true");
+            cells[0].focus();
+          }
+        }
+        byId("pair-button").disabled = code().length !== CODE_LENGTH;
+      }
+
+      byId("pair-form").onsubmit = (event) => {
+        event.preventDefault();
+        if (code().length === CODE_LENGTH) connect(true);
+      };
+      byId("setup-close").onclick = () =>
+        call("/api/close", {}).catch((error) => {
+          byId("lede").textContent = error.message;
+        });
+      byId("keep").onclick = () => connect(false);
+      byId("pair-again").onclick = () => showStep("pair");
+      byId("folder-form").onsubmit = (event) => {
+        event.preventDefault();
+        const folder = byId("folder").value.trim();
+        if (folder)
+          change("/api/folders", { folder, approve: true }).then(() => {
+            byId("folder").value = "";
+          });
+      };
+      byId("screenshots").onclick = () => {
+        const on = byId("screenshots").getAttribute("aria-checked") !== "true";
+        change("/api/screenshots", { on });
+      };
+      // Starts the agent again, so it is running with these folders, then ends setup. In the app the
+      // window closes by itself; in a browser, say it can be closed.
+      byId("done").onclick = () =>
+        busy(byId("done"), "Finishing…", async () => {
+          byId("access-error").textContent = "";
+          try {
+            await call("/api/finish", {});
+          } catch (error) {
+            byId("access-error").textContent = error.message;
+            return;
+          }
+          await call("/api/close", {}).catch(() => {});
+          document.querySelectorAll(".panel, .steps").forEach((panel) => {
+            panel.hidden = true;
+          });
+          byId("title").textContent = "All set";
+          byId("lede").textContent =
+            "You can close this window. Change folders any time from Relay's ⋯ menu, under Folders & setup.";
+        });
+
+      // Already paired (opened again from the menu): go straight to folders.
+      call("/api/state")
+        .then((state) => {
+          render(state);
+          showStep(state.paired ? "folders" : "pair");
+        })
+        .catch((error) => {
+          byId("pair-error").textContent = error.message;
+        });
+    </script>
+  </body>
+</html>

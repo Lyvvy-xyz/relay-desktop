@@ -1,0 +1,55 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+
+      - name: Agent
+        working-directory: agent
+        run: |
+          go vet ./...
+          go test ./...
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Buddy interface
+        run: node --test buddy/ui/
+
+  secrets:
+    runs-on: ubuntu-24.04
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks, checksum verified
+        run: |
+          release="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "${archive}" "${release}/${archive}"
+          curl -sSfL -o checksums.txt "${release}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " ${archive}$" checksums.txt | sha256sum --check -
+          tar xzf "${archive}" gitleaks
+
+      - name: Scan every commit
+        run: ./gitleaks git --redact --no-banner .

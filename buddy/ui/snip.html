@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Show me what's wrong</title>
+<link rel="stylesheet" href="relay.css">
+<link rel="stylesheet" href="snip.css">
+</head>
+<body>
+  <img class="shot" id="shot" alt="">
+  <div class="dim" id="dim"></div>
+  <div class="selection" id="selection" hidden></div>
+  <div class="hint" id="hint">Drag a box around what's wrong · Esc to cancel</div>
+
+  <form class="card" id="card" hidden>
+    <div class="eyebrow">Send to a project</div>
+    <select class="field" id="project" aria-label="Project"></select>
+    <textarea class="field" id="note" rows="3" placeholder="What's wrong? e.g. this button still has black text"></textarea>
+    <div class="error" id="error" role="alert"></div>
+    <div class="card__actions">
+      <button class="button button--quiet" type="button" id="redo">Redo</button>
+      <button class="button button--quiet" type="button" id="cancel">Cancel</button>
+      <button class="button button--primary" type="submit" id="send">Send</button>
+    </div>
+  </form>
+
+  <div class="card card--center" id="failed" hidden>
+    <div class="eyebrow">Couldn't take the screenshot</div>
+    <p id="failed-reason"></p>
+    <div class="card__actions"><button class="button" type="button" id="failed-close">Close</button></div>
+  </div>
+
+  <script type="module" src="snip.js"></script>
+</body>
+</html>
