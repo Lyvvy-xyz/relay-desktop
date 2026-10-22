@@ -12,14 +12,13 @@ const STATUS_MILLISECONDS = 5000;
 const ACTIVITY_MILLISECONDS = 4000;
 const WORKING_MILLISECONDS = 4500;
 const BUBBLE_MILLISECONDS = 6000;
-// Idle, it tucks away to a thin handle; the pointer at the top edge brings it out for this long.
+// How long the island stays out after the pointer touches the top edge.
 const WAKE_MILLISECONDS = 3000;
-// The window keeps one width, wide enough for every state, so it never has to move sideways:
-// a resize and a move can't happen at once. Only its height changes.
+// The window width is fixed so it never moves sideways; only the height changes.
 const ISLAND_WINDOW_WIDTH = 360;
-// Matches the island's size transition in buddy.css.
+// Same as the transition in buddy.css.
 const ISLAND_MOTION_MILLISECONDS = 220;
-// Click him this many times this quickly and he puts on a wizard hat, for a while.
+// Wizard hat: 5 clicks within 2 seconds, lasts 2 minutes.
 const HAT_CLICKS = 5;
 const HAT_WINDOW_MILLISECONDS = 2000;
 const HAT_MILLISECONDS = 120_000;
@@ -32,18 +31,18 @@ const pillText = document.getElementById("pill-text");
 const dropHint = document.querySelector(".isle-hint");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
-// What it is showing, by priority: a dragover beats a request for attention beats work beats sleep.
+// Frog state, highest priority first: dragging, attention, working, asleep.
 const mood = { excited: false, attention: false, workingUntil: 0, asleep: false, hatUntil: 0, meal: null, carrying: null };
-// Relay can't work: "agent" (not running) or "homelab" (running, but can't reach the server).
-// This beats every other state. Watching Claude needs no agent, so then it never shows.
+// Why Relay isn't working: "agent" (not running) or "homelab" (can't reach the server). Overrides
+// every other state, but not in Claude mode, which doesn't need the agent.
 let offline = "";
-// The island's line: a passing message beats the busiest session's status (from the panel).
+// Island text: a temporary message wins over the busiest session's status.
 const line = { message: "", status: null };
 let awakeUntil = 0;
 let shownMode = "";
 const clicks = [];
 const look = { x: 0, y: 0 };
-const MEAL_SECONDS = 1.9; // frog.js plays the eating animation for this long
+const MEAL_SECONDS = 1.9; // length of the eating animation in frog.js
 
 function currentMeal() {
   return mood.meal && performance.now() / 1000 - mood.meal.at < MEAL_SECONDS ? mood.meal : null;
@@ -74,8 +73,8 @@ function islandText(mode) {
   return line.message || (line.status ? `${line.status.project} · ${line.status.line}` : "");
 }
 
-// Every change of state eases the island from its old size to its new one. Growing, the window
-// grows first and the island fills it; shrinking, the island shrinks first and the window follows.
+// Animates the island between its old and new size. Growing, the window resizes first; shrinking,
+// it resizes after.
 let settleTimer = 0;
 function render() {
   body.className = `state-${currentState()}`;
@@ -94,7 +93,7 @@ function render() {
   dockTo(Math.max(from.height, to.height));
   island.style.width = `${from.width}px`;
   island.style.height = `${from.height}px`;
-  island.getBoundingClientRect(); // start the transition from the old size
+  island.getBoundingClientRect(); // force layout so the transition starts from the old size
   island.style.width = `${to.width}px`;
   island.style.height = `${to.height}px`;
   settleTimer = setTimeout(() => {
@@ -103,8 +102,8 @@ function render() {
   }, ISLAND_MOTION_MILLISECONDS + 30);
 }
 
-// Window sizes go to the app one at a time, latest wins, so they can't land out of order. The
-// window is shown only once it has its first size, so it never flashes at the wrong one.
+// Window sizes are sent one at a time, keeping only the latest, so they can't arrive out of order.
+// The window is shown after its first resize.
 let wantedHeight = null;
 let docking = false;
 let windowShown = false;
@@ -179,7 +178,7 @@ function showPeek({ project, state = "done", text, attention = false }) {
 }
 
 
-// Where the mouse is, for the frog's occasional lazy glance. He blinks and yawns on his own.
+// Mouse position, for the frog's eyes.
 async function followMouse() {
   try {
     const [x, y] = await invoke("cursor_from_buddy");
@@ -190,13 +189,12 @@ async function followMouse() {
     if (islandMode() !== shownMode) render();
     letClicksThrough(!onIsland(x, y));
   } catch {
-    // The window is mid-move; try again next tick.
+    // The window is moving; try again next tick.
   }
 }
 
-// The pointer (physical pixels from the window's corner) is on the island, or at the top edge of
-// the screen in its middle third. Polling the position instead of waiting for a hover means it
-// wakes mid-drag too, and an invisible hover strip never steals clicks from the window beneath.
+// Positions are physical pixels from the window corner. Polling instead of using hover events means
+// it also wakes during a drag.
 function onIsland(x, y) {
   const scale = devicePixelRatio;
   const box = island.getBoundingClientRect();
@@ -205,12 +203,12 @@ function onIsland(x, y) {
 
 function pointerWakes(x, y) {
   const scale = devicePixelRatio;
-  // Above zero is a macOS menu bar, which the island sits just below.
+  // Negative y is the macOS menu bar, which the island sits under.
   const atTop = y <= 3 * scale && y > -48 * scale;
   return onIsland(x, y) || (atTop && Math.abs(x - (innerWidth * scale) / 2) <= (screen.width * scale) / 6);
 }
 
-// The window is wider than the island: around it, clicks pass through to whatever is beneath.
+// Clicks around the island pass through to the window below.
 let clicksThrough = null;
 function letClicksThrough(through) {
   if (through === clicksThrough) return;
@@ -218,7 +216,6 @@ function letClicksThrough(through) {
   invoke("island_click_through", { through }).catch(() => {});
 }
 
-// Click opens the panel.
 buddy.addEventListener("click", clicked);
 
 function clicked() {
@@ -243,7 +240,7 @@ function openPanel() {
   invoke("toggle_panel");
 }
 
-// Is the agent there? Only a change re-renders, so a steady outage stays still.
+// Checks the agent. Only re-renders on a change.
 async function checkStatus() {
   let now = "";
   if (source() !== CLAUDE) {
@@ -260,7 +257,7 @@ async function checkStatus() {
   }
 }
 
-// What are projects doing on this machine? The first look only sets the baseline.
+// Shows what projects did on this machine. The first poll just sets the baseline.
 let newestSeen = null;
 async function checkActivity() {
   if (mood.asleep || source() === CLAUDE) return;
@@ -276,13 +273,10 @@ async function checkActivity() {
       else say(`${latest.project} ${describeJob(latest)}`);
       setTimeout(render, WORKING_MILLISECONDS + 50);
     }
-  } catch {
-    // Status reports the outage; nothing to add here.
-  }
+  } catch {}
 }
 
-// Files dragged over it: they hang under the cursor and he gets excited. He eats what was
-// carried, from where it was let go, and then the app opens the panel.
+// Dragged files hang under the cursor. On drop the frog eats them, then the app opens the panel.
 getCurrentWebview().onDragDropEvent(async (event) => {
   const { type, position } = event.payload;
   if (type === "enter") {
@@ -312,7 +306,7 @@ getCurrentWebview().onDragDropEvent(async (event) => {
   frog.redraw();
 });
 
-// The drop position (physical window pixels) in the frog's canvas pixels, kept on the canvas.
+// Converts a drop position (physical window pixels) to frog canvas pixels, clamped to the canvas.
 function dropPoint(position) {
   const canvas = document.getElementById("frog");
   const box = canvas.getBoundingClientRect();
@@ -324,13 +318,12 @@ function dropPoint(position) {
   };
 }
 
-// The panel asks it to speak, e.g. when a project replies while the panel is closed.
+// Lets the panel show messages while it's closed.
 listen("buddy:say", (event) => {
   const { text, attention = false } = event.payload;
   mood.attention = attention;
   if (event.payload.project) showPeek(event.payload);
-  else say(text, { attention, sticky: attention });
-  render();
+  else say(text, { sticky: attention });
 });
 listen("buddy:status", (event) => {
   line.status = event.payload;
@@ -340,7 +333,7 @@ listen("agent:changed", () => {
   forgetConnection();
   checkStatus();
 });
-// Claude Code on this computer wants an OK. It stays until answered, here or in the panel.
+// Claude Code permission request. Stays until answered here or in the panel.
 let askShown = null;
 listen("buddy:ask", ({ payload: ask }) => {
   showPeek({ project: ask.project, state: "needs", text: `${ask.tool} · ${ask.summary}`, attention: true });
@@ -366,7 +359,7 @@ listen("source:changed", () => {
   checkStatus();
   render();
 });
-// The panel folded back up: the island eases back in where its tab was.
+// Fade the island back in when the panel closes.
 listen("buddy:shown", () => {
   if (!reducedMotion.matches) {
     island.animate([{ opacity: 0, transform: "translateY(-6px)" }, { opacity: 1, transform: "none" }], {
@@ -379,7 +372,7 @@ const frog = startFrog(document.getElementById("frog"), {
   state: currentState, look, hat: () => Date.now() < mood.hatUntil, meal: currentMeal,
   carrying: () => mood.carrying,
 });
-// Learn whether the agent is there before the first draw.
+// Check the agent before the first render.
 checkStatus().finally(() => {
   render();
   setInterval(followMouse, LOOK_MILLISECONDS);

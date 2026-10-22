@@ -135,7 +135,7 @@ export function buildMarkdown(tokens, doc = document, highlighter = globalThis.h
     const code = make("code", token.text, "hljs");
     if (highlighter?.getLanguage(token.language)) {
       try {
-        // highlight.js escapes source text before adding its own span markup.
+        // highlight.js escapes the source before adding its spans.
         code.innerHTML = highlighter.highlight(token.text, { language: token.language, ignoreIllegals: true }).value;
       } catch {
         code.textContent = token.text;

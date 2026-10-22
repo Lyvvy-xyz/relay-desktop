@@ -24,6 +24,10 @@ function element(tag, className, text) {
   return node;
 }
 
+const plural = (count, word, many = `${word}s`) => `${count} ${count === 1 ? word : many}`;
+const stepLine = (step) => `${step.tool} · ${step.summary || "Step"}`;
+const clockTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+
 function showNotice(message) {
   byId("notice").textContent = message;
   byId("notice").hidden = !message;
@@ -60,8 +64,7 @@ async function repair() {
 
 // ---- Tabs ----------------------------------------------------------------------------------
 
-// Sessions are always on the left, so a "sessions" request means the chat beside them.
-// Watching Claude, there is no activity or file sending: those are Relay's.
+// Sessions are always shown on the left, so "sessions" means chat. Claude mode only has chat.
 function selectTab(name) {
   if (name === "sessions" || (source() === CLAUDE && name !== "chat")) name = "chat";
   for (const tab of document.querySelectorAll(".tab")) {
@@ -79,7 +82,7 @@ listen("panel:tab", (event) => selectTab(event.payload));
 byId("session-settings").onclick = () => invoke("open_setup");
 byId("dock").onclick = () => collapsePanel();
 
-// The panel drops down from the island and folds back up into it.
+// Open and close animation.
 const PANEL_MOTION_MILLISECONDS = 180;
 function collapsePanel() {
   if (document.body.classList.contains("panel-leaving")) return;
@@ -139,8 +142,8 @@ byId("new-session-form").onsubmit = async (event) => {
   byId("message").focus();
 };
 
-// Claude Code wants an OK: a card in the chat, and the island asks too (it shows while this
-// panel is folded away). Whichever is answered first, the other goes away.
+// A Claude Code permission request shows as a card in the chat and in the island. Answering either
+// removes both.
 const askCards = new Map();
 function showAsk(ask) {
   emitTo("buddy", "buddy:ask", ask);
@@ -173,7 +176,7 @@ listen("claude:line", async ({ payload }) => {
   } catch {
     return;
   }
-  // A new session's transcript exists once Claude Code has started: pick it up.
+  // A new session's transcript exists once Claude Code starts, so reload the list.
   if (record.type === "system" && record.subtype === "init") await loadProjects();
   if (record.type === "result" && record.is_error) showNotice(String(record.result || "Claude Code stopped with an error."));
 });
@@ -189,7 +192,6 @@ listen("source:changed", async () => {
   sessions.clear();
   islandStatus = "";
   showNotice("");
-  byId("notice").hidden = true;
   applySource();
   await refresh();
   await switchProject(byId("chat-project").value || "");
@@ -198,7 +200,7 @@ window.__TAURI__.app.getVersion().then((version) => { byId("version").textConten
 
 // ---- Updates -------------------------------------------------------------------------------
 
-// Its own notice: the project poll clears the shared one every few seconds.
+// Separate from the main notice, which the project poll keeps clearing.
 function showUpdate(...content) {
   if (content.length && !content.some(node => node.tagName === "BUTTON" || node.querySelector("button"))) {
     content.push(Object.assign(element("button", "quiet", "Back"), { onclick: () => showUpdate() }));
@@ -302,7 +304,7 @@ function updateStepGroup(group) {
   group.details.className = `step-ticker step--${state}`;
   group.summary.replaceChildren(
     element("span", "step__state"),
-    element("span", "step__text", `${current.tool} · ${current.summary || "Step"}`),
+    element("span", "step__text", stepLine(current)),
   );
 }
 
@@ -325,7 +327,7 @@ function addEvent(event) {
   } else if (event.kind === "tool_start") {
     const group = chat.group ||= newStepGroup();
     const row = element("li", "step step--running");
-    row.append(element("span", "step__state"), element("span", "", `${event.tool} · ${event.summary || "Step"}`));
+    row.append(element("span", "step__state"), element("span", "", stepLine(event)));
     const step = { row, group, tool: event.tool, summary: event.summary, state: "running" };
     group.steps.push(step);
     group.list.append(row);
@@ -336,7 +338,7 @@ function addEvent(event) {
     if (step) {
       step.state = event.ok ? "ok" : "failed";
       step.row.className = `step step--${step.state}`;
-      step.row.setAttribute("aria-label", `${step.tool} · ${step.summary || "Step"} · ${event.ok ? "Done" : "Failed"}`);
+      step.row.setAttribute("aria-label", `${stepLine(step)} · ${event.ok ? "Done" : "Failed"}`);
       updateStepGroup(step.group);
     }
   } else if (event.kind === "done") {
@@ -348,7 +350,7 @@ async function readEvents() {
   if (!chat.project) return;
   const project = chat.project;
   const page = await readSessionEvents(project, chat.cursor);
-  if (project !== chat.project) return; // switched projects while reading
+  if (project !== chat.project) return;
   chat.cursor = page.cursor;
   for (const event of page.events) {
     addEvent(event);
@@ -362,7 +364,7 @@ async function finishedTurn() {
   if (chat.turnNotice) chat.turnNotice.announced = true;
   chat.awaiting = false;
   byId("typing").hidden = true;
-  // Closed panel: let the buddy tell you.
+  // Panel closed: tell the user through the island.
   if (!(await me.isVisible())) {
     emitTo("buddy", "buddy:say", { project, state: "done", text: "New reply ready", attention: true });
   }
@@ -393,7 +395,7 @@ listen("panel:project", async ({ payload }) => {
   await switchProject(payload);
 });
 byId("chat-project").onchange = (event) => switchProject(event.target.value);
-// Links in replies open in the browser; followed here they would replace the panel.
+// Open reply links in the browser instead of inside the panel.
 byId("messages").addEventListener("click", (event) => {
   const link = event.target.closest("a[href]");
   if (!link) return;
@@ -408,7 +410,7 @@ byId("composer").onsubmit = async (event) => {
   byId("send-message").disabled = true;
   try {
     if (source() === CLAUDE) await sendToClaude(chat.project, text);
-    else await agent(`/projects/${chat.project}/messages`, { method: "POST", form: { text } });
+    else await agent(`/projects/${encodeURIComponent(chat.project)}/messages`, { method: "POST", form: { text } });
     byId("message").value = "";
     chat.group = null;
     chat.pending = element("div", "message message--user message--pending", text);
@@ -434,9 +436,7 @@ byId("message").addEventListener("keydown", (event) => {
 async function pollChat() {
   try {
     if (chat.awaiting || (await me.isVisible())) await readEvents();
-  } catch {
-    // The notice already says what is wrong; keep polling.
-  }
+  } catch {}
   setTimeout(pollChat, chat.awaiting ? QUICK_POLL_MILLISECONDS : SLOW_POLL_MILLISECONDS);
 }
 
@@ -502,12 +502,12 @@ function renderSessions() {
     view.elapsed.textContent = state.startedAt === null ? "" :
       formatElapsed(state.startedAt, state.endedAt);
     const step = state.steps.at(-1);
-    const line = step ? `${step.tool} · ${step.summary || "Step"}` : state.text;
+    const line = step ? stepLine(step) : state.text;
     view.group.summary.replaceChildren(element("span", "step__state"), element("span", "step__text", line || view.status.textContent));
     view.group.list.replaceChildren(...state.steps.map((step) => {
       const row = element("li", `step step--${step.state}`);
       row.append(element("span", "", step.tool), element("span", "", step.summary || "Step"));
-      row.setAttribute("aria-label", `${step.tool} · ${step.summary} · ${step.state}`);
+      row.setAttribute("aria-label", `${stepLine(step)} · ${step.state}`);
       return row;
     }));
   }
@@ -519,7 +519,7 @@ function renderSessions() {
     time.textContent = formatElapsed(current.startedAt, current.endedAt);
   }
   byId("sessions-empty").hidden = live.length !== 0;
-  byId("session-count").textContent = `${live.length} session${live.length === 1 ? "" : "s"}`;
+  byId("session-count").textContent = plural(live.length, "session");
 }
 
 async function readSession(name) {
@@ -531,11 +531,12 @@ async function readSession(name) {
     entry.state = deriveSession(previous, page.events, previous ? Date.now() : null);
     entry.cursor = page.cursor;
     if (entry.state.state === "done" && page.events.some((event) => event.kind === "done")) {
-      // The token survives either poll finishing first, and a switch away from Chat.
+      // The chat and session polls share this token, so a finished turn is announced once,
+      // whichever sees it first.
       const chatTurn = entry.chatTurn;
       entry.chatTurn = null;
       const chatOwnsNotice = chatTurn && (chatTurn.announced || (chat.turnNotice === chatTurn && chat.awaiting));
-      if (previous?.state === "working" && entry.state.state === "done" && !chatOwnsNotice && !(await me.isVisible())) {
+      if (previous?.state === "working" && !chatOwnsNotice && !(await me.isVisible())) {
         await emitTo("buddy", "buddy:say", { project: name, state: "done", text: entry.state.text || "Session finished", attention: true });
       }
     }
@@ -544,14 +545,14 @@ async function readSession(name) {
   }
 }
 
-// The island at the top of the screen shows the one session worth a glance: working, else failed.
+// The island shows one session: a working one, else a failed one.
 let islandStatus = "";
 function tellIsland() {
   const live = [...sessions].filter(([, entry]) => entry.state);
   const pick = live.find(([, entry]) => entry.state.state === "working") || live.find(([, entry]) => entry.state.state === "failed");
   const step = pick?.[1].state.steps.at(-1);
   const status = pick
-    ? { project: pick[0], state: pick[1].state.state, line: step ? `${step.tool} · ${step.summary || "Step"}` : "Working" }
+    ? { project: pick[0], state: pick[1].state.state, line: step ? stepLine(step) : "Working" }
     : null;
   const key = JSON.stringify(status);
   if (key === islandStatus) return;
@@ -576,56 +577,89 @@ async function pollSessions() {
 // ---- Activity ------------------------------------------------------------------------------
 
 const VERB_ICONS = { screenshot: "shot", list: "icon-folder", read: "read", write: "save" };
+const VERB_DONE = { read: "Read", write: "Saved", list: "Listed", screenshot: "Captured screenshot" };
+const VERB_REFUSED = { write: "Write", screenshot: "Screenshot" };
+const ACTIVITY_TYPES = {
+  failed: (job) => job.status === "failed",
+  screenshot: (job) => job.verb === "screenshot",
+  files: (job) => ["read", "write", "list"].includes(job.verb),
+};
 let activityJobs = [];
+
+function dayLabel(date, today) {
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  const daysAgo = Math.round((today - day) / 86_400_000);
+  const prefix = daysAgo === 0 ? "Today, " : daysAgo === 1 ? "Yesterday, " : "";
+  const year = date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {};
+  return prefix + date.toLocaleDateString("en-GB", { day: "numeric", month: "long", ...year });
+}
+
+function activityRow(job) {
+  const date = new Date(job.created_at * 1000);
+  const failed = job.status === "failed";
+  const row = element("li", failed ? "activity--failed" : "");
+  const time = element("time", "", clockTime(date));
+  time.dateTime = date.toISOString();
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#art-${failed ? "close" : VERB_ICONS[job.verb] || "read"}`);
+  icon.append(use);
+  const verb = VERB_DONE[job.verb] || job.verb;
+  const text = failed
+    ? `${VERB_REFUSED[job.verb] || verb} refused`
+    : `${verb}${job.argument ? ` ${baseName(job.argument)}` : ""}`;
+  const folder = String(job.argument || "").split(/[\\/]/).filter(Boolean).slice(0, -1).slice(-2).join(" / ");
+  const detail = element("div");
+  detail.append(element("span", "", text), element("small", "", `${job.project}${folder ? ` · ${folder}` : ""}`));
+  row.append(time, icon, detail);
+  return row;
+}
+
 function renderActivity() {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const project = byId("activity-project").value;
-  const type = byId("activity-type").value;
+  const matchesType = ACTIVITY_TYPES[byId("activity-type").value] || (() => true);
   const groups = new Map();
   for (const job of [...activityJobs].sort((a, b) => b.created_at - a.created_at)) {
-    if (project && job.project !== project) continue;
-    if (type === "failed" && job.status !== "failed") continue;
-    if (type === "screenshot" && job.verb !== "screenshot") continue;
-    if (type === "files" && !["read", "write", "list"].includes(job.verb)) continue;
-    const date = new Date(job.created_at * 1000);
-    const day = new Date(date); day.setHours(0, 0, 0, 0);
-    const label = (day.getTime() === today.getTime() ? "Today, " : day.getTime() === yesterday.getTime() ? "Yesterday, " : "") + date.toLocaleDateString("en-GB", { day: "numeric", month: "long", ...(date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}) });
+    if ((project && job.project !== project) || !matchesType(job)) continue;
+    const label = dayLabel(new Date(job.created_at * 1000), today);
     if (!groups.has(label)) groups.set(label, []);
-    const failed = job.status === "failed";
-    const row = element("li", failed ? "activity--failed" : "");
-    const time = element("time", "", date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", hour12:false}));
-    time.dateTime = date.toISOString();
-    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    icon.setAttribute("aria-hidden", "true");
-    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-    use.setAttribute("href", `#art-${failed ? "close" : VERB_ICONS[job.verb] || "read"}`); icon.append(use);
-    const verb = {read:"Read", write:"Saved", list:"Listed", screenshot:"Captured screenshot"}[job.verb] || job.verb;
-    const text = failed ? `${job.verb === "write" ? "Write" : job.verb === "screenshot" ? "Screenshot" : verb} refused` : `${verb}${job.argument ? " " + baseName(job.argument) : ""}`;
-    const parts = String(job.argument || "").split(/[\\/]/).filter(Boolean); parts.pop();
-    const folder = parts.slice(-2).join(" / ");
-    const detail = element("div"); detail.append(element("span", "", text), element("small", "", `${job.project}${folder ? " · " + folder : ""}`));
-    row.append(time, icon, detail); groups.get(label).push(row);
+    groups.get(label).push(activityRow(job));
   }
   byId("activity").replaceChildren(...[...groups].map(([label, rows]) => {
-    const group = element("li", "activity__group"); const list = element("ol", "log"); list.append(...rows);
-    group.append(element("h2", "", label), list); return group;
+    const group = element("li", "activity__group");
+    const list = element("ol", "log");
+    list.append(...rows);
+    group.append(element("h2", "", label), list);
+    return group;
   }));
 }
+
 async function loadActivity() {
   try {
-    ({jobs: activityJobs} = await agent("/activity"));
-    const select = byId("activity-project"), chosen = select.value;
-    select.replaceChildren(Object.assign(element("option", "", "All projects"), {value:""}), ...[...new Set(activityJobs.map(job => job.project))].map(name => Object.assign(element("option", "", name), {value:name})));
-    select.value = chosen; renderActivity();
-  } catch (error) { showAgentProblem(error); }
+    ({ jobs: activityJobs } = await agent("/activity"));
+    const select = byId("activity-project");
+    const chosen = select.value;
+    const names = [...new Set(activityJobs.map((job) => job.project))];
+    select.replaceChildren(
+      Object.assign(element("option", "", "All projects"), { value: "" }),
+      ...names.map((name) => Object.assign(element("option", "", name), { value: name })),
+    );
+    select.value = chosen;
+    renderActivity();
+  } catch (error) {
+    showAgentProblem(error);
+  }
 }
 byId("activity-project").onchange = renderActivity;
 byId("activity-type").onchange = renderActivity;
 
 // ---- Send files ----------------------------------------------------------------------------
 
-// path -> { item, files }: files is null for a file, or every file in a dropped folder.
+// path -> { item, files }. files is null for a single file, or the folder's file list.
 const dropped = new Map();
 let sending = false;
 let sentCount = 0;
@@ -633,17 +667,23 @@ const deliveries = [];
 const knownSizes = new Map();
 const baseName = (path) => path.split(/[\\/]/).filter(Boolean).pop() || path;
 
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
 function renderFileCount() {
   byId("file-count").textContent = String(dropped.size);
   byId("file-count").hidden = dropped.size === 0;
-  byId("item-count").textContent = `${dropped.size} item${dropped.size === 1 ? "" : "s"}`;
+  byId("item-count").textContent = plural(dropped.size, "item");
   byId("drop-empty").hidden = dropped.size !== 0;
   byId("send-content").hidden = dropped.size === 0;
   const sizes = [...dropped].flatMap(([path, entry]) => entry.files === null ? [knownSizes.get(path)] : entry.files.map(file => file.size ?? knownSizes.get(file.path)));
   const total = sizes.reduce((sum, size) => sum + (size || 0), 0);
-  byId("total-size").textContent = sizes.length && sizes.every(Number.isFinite) ? (total < 1024 ? `${total} B` : total < 1048576 ? `${(total / 1024).toFixed(1)} KB` : `${(total / 1048576).toFixed(1)} MB`) : "";
+  byId("total-size").textContent = sizes.length && sizes.every(Number.isFinite) ? formatSize(total) : "";
   const project = byId("send-project").value;
-  byId("send-files").textContent = `Send ${dropped.size} item${dropped.size === 1 ? "" : "s"}`;
+  byId("send-files").textContent = `Send ${plural(dropped.size, "item")}`;
   byId("send-files").disabled = sending || dropped.size === 0 || !project;
   byId("clear-files").disabled = sending;
   for (const button of byId("files").querySelectorAll("button")) button.disabled = sending;
@@ -674,7 +714,7 @@ async function addDropped(path, isFolder) {
   try {
     entry.files = await invoke("dropped_folder_files", { path });
     for (const file of entry.files) knownSizes.delete(file.path);
-    setResult(entry, "muted", `${entry.files.length} file${entry.files.length === 1 ? "" : "s"}`);
+    setResult(entry, "muted", plural(entry.files.length, "file"));
   } catch (error) {
     entry.files = [];
     setResult(entry, "result--failed", String(error));
@@ -701,7 +741,7 @@ byId("clear-files").onclick = () => {
   renderFileCount();
 };
 
-// One upload per file; a folder's files share a batch so they land together, in their folders.
+// One upload per file. Files from a folder share a batch id so they arrive together.
 function uploadsFor(path, entry) {
   if (entry.files === null) return [{ path, name: baseName(path) }];
   const batch = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -720,16 +760,16 @@ async function upload(project, original, file, note) {
     form.append("batch", file.batch);
   }
   if (note) form.append("note", note);
-  await agent(`/projects/${project}/inbox`, { method: "POST", body: form });
+  await agent(`/projects/${encodeURIComponent(project)}/inbox`, { method: "POST", body: form });
 }
 
-// Sends one dropped file or folder. The note goes with the very last upload of the whole send,
-// so the session is told once, after everything has arrived.
+// Sends one dropped file or folder. The note goes with the last upload, so the session is told once
+// everything has arrived.
 async function sendEntry(project, path, entry, note) {
   const files = uploadsFor(path, entry);
   if (files.length === 0) return false;
   try {
-    // Before the files go, so a project told about them can already save its changes back.
+    // Grant edit access first, so the project can save back as soon as it's told.
     await agent("/dropped", { method: "POST", body: JSON.stringify({ paths: [path] }) });
     for (const [index, file] of files.entries()) {
       setResult(entry, "muted", files.length === 1 ? "sending…" : `sending ${index + 1} of ${files.length}…`);
@@ -762,14 +802,14 @@ byId("send-files").onclick = async () => {
   renderFileCount();
   if (sent) {
     sentCount += 1;
-    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    const time = clockTime(new Date());
     byId("sent-history").hidden = false;
-    byId("sent-summary").textContent = `Sent history · ${sentCount} ${sentCount === 1 ? "delivery" : "deliveries"} · Last sent ${time}`;
-    deliveries.unshift(`${time} · ${sent} item${sent === 1 ? "" : "s"} to ${project}`);
+    byId("sent-summary").textContent = `Sent history · ${plural(sentCount, "delivery", "deliveries")} · Last sent ${time}`;
+    deliveries.unshift(`${time} · ${plural(sent, "item")} to ${project}`);
     deliveries.splice(5);
     byId("sent-detail").replaceChildren(...deliveries.map(text => element("p", "", text)));
     byId("send-note").value = "";
-    emitTo("buddy", "buddy:say", { text: `Sent ${sent} thing${sent === 1 ? "" : "s"} to ${project}. It can save changes straight back.` });
+    emitTo("buddy", "buddy:say", { text: `Sent ${plural(sent, "thing")} to ${project}. It can save changes straight back.` });
   }
 };
 
@@ -789,7 +829,7 @@ async function refresh() {
 listen("agent:changed", () => { forgetConnection(); refresh(); });
 me.onFocusChanged(({ payload: focused }) => {
   if (!focused) return;
-  // In case the window was shown before this page could hear about it.
+  // In case the window was shown before this page was listening.
   if (!document.body.classList.contains("panel-leaving")) document.body.classList.remove("panel-gone");
   refresh();
 });

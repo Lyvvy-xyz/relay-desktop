@@ -1,5 +1,5 @@
-// Where sessions come from: Relay (projects on the server, through the agent) or Claude Code running on
-// this computer, read from its own transcripts. Only one at a time; every window shares the choice.
+// Where sessions come from: Relay (server projects, through the agent) or Claude Code on this
+// computer (from its transcripts). One at a time, shared across windows.
 import { agent } from "./agent.js";
 import { eventsInLine, summary } from "./transcript.js";
 
@@ -21,13 +21,12 @@ export function setSource(value) {
   try {
     localStorage.setItem(SOURCE_KEY, value);
   } catch {
-    // Without storage the choice lasts until Relay restarts.
+    // No storage: the choice lasts until restart.
   }
 }
 
-// Claude only: each session by the name shown for it ({ name, id, cwd, transcript }; a new one
-// has no id or transcript until Claude Code has written its first line), and the Claude Code
-// process this window started for it, if any.
+// Claude mode: sessions by display name ({ name, id, cwd, transcript }; id and transcript are null
+// until Claude Code writes its first line), and the Claude Code process started for each.
 const claudeSessions = new Map();
 const runs = new Map();
 
@@ -36,13 +35,13 @@ export async function listSessions() {
   const found = await invoke("claude_sessions");
   const unwritten = [...claudeSessions.values()].filter((session) => !session.transcript);
   claudeSessions.clear();
-  // Two folders with the same name: the more recently active one keeps it.
+  // If two folders share a name, the most recent one wins.
   for (const session of found.sort((a, b) => a.modified - b.modified)) claudeSessions.set(session.name, session);
   for (const session of unwritten) if (!claudeSessions.has(session.name)) claudeSessions.set(session.name, session);
   return [...claudeSessions.keys()].map((name) => ({ name, is_session_live: true }));
 }
 
-// The folders recent sessions ran in, to offer when starting a new one.
+// Folders of recent sessions, offered when starting a new one.
 export function claudeFolders() {
   return [...new Set([...claudeSessions.values()].map((session) => session.cwd))];
 }
@@ -56,8 +55,8 @@ export function newClaudeSession(cwd) {
   return name;
 }
 
-// The first message to a session starts Claude Code for it (continuing it, if it has history);
-// later ones go to the same process, so it keeps the conversation.
+// The first message starts Claude Code (resuming if there's history); later ones go to the same
+// process.
 export async function sendToClaude(name, text) {
   const session = claudeSessions.get(name);
   if (!session) throw new Error("Pick a session, or start a new one.");
@@ -80,7 +79,7 @@ export function forgetRun(run) {
   return name;
 }
 
-// A "claude:line" that asks the person's OK for a tool call, or null.
+// Parses a claude:line permission request, or returns null.
 export function askIn({ run, line }) {
   let record;
   try {
@@ -94,7 +93,7 @@ export function askIn({ run, line }) {
   return { run, requestId: record.request_id, tool, input, summary: summary(tool, input) };
 }
 
-// Whichever window answers first (the panel's card or the island's peek), the other one is told.
+// Tells the other window the request was answered.
 export async function answerClaude(ask, allow) {
   const response = allow
     ? { behavior: "allow", updatedInput: ask.input }
@@ -106,7 +105,7 @@ export async function answerClaude(ask, allow) {
   await emit("claude:answered", ask.requestId);
 }
 
-// A Claude cursor is "<transcript>\n<byte offset>"; a path can hold a colon, never a newline.
+// Claude cursors are "<transcript>\n<byte offset>". Paths can contain colons but not newlines.
 export async function readEvents(name, cursor) {
   if (source() === RELAY) return agent(`/projects/${encodeURIComponent(name)}/events?cursor=${encodeURIComponent(cursor)}`);
   const transcript = claudeSessions.get(name)?.transcript;

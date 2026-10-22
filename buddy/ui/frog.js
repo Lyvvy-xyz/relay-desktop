@@ -1,12 +1,11 @@
-// The buddy: a fat, lazy pixel frog, drawn pixel by pixel each frame on a tiny canvas that CSS
-// scales up with crisp edges. Drawing him from a few shapes (instead of fixed frames) is what
-// lets his belly swell and sag with every heavy breath and still stay true pixel art.
-// mood.meal() is null, or { at, count, folder, from: {x, y} } for files just dropped on him, and
-// mood.carrying() null or { count, folder, at: {x, y} } for files being dragged over him (canvas pixels).
+// The frog: pixel art drawn from simple shapes every frame on a small canvas that CSS scales up,
+// which lets his belly move with each breath. mood.meal() is null or { at, count, folder, from: {x,
+// y} } for just-dropped files; mood.carrying() is null or { count, folder, at: {x, y} } while files
+// are dragged over (canvas pixels).
 
 const W = 40;
 const H = 40;
-const FRAME_MILLISECONDS = 125; // 8 fps: steppy, like an old handheld
+const FRAME_MILLISECONDS = 125; // 8 fps
 const COLORS = {
   outline: "#10241e", skin: "#6fbf7f", shade: "#4b9a63", light: "#a9e39a", belly: "#d4efb8",
   white: "#f4faf7", mouth: "#3a1f22", tongue: "#f18768", sweat: "#8fd3ff", bubble: "#cdeeff",
@@ -14,7 +13,7 @@ const COLORS = {
   hat: "#5b4bb7", hatBand: "#e2b65c", star: "#ffe27a", folder: "#e2b65c", folderTab: "#c9993f",
 };
 
-// How each mood breathes and how open his eyes are (0 open, 1 shut). Lazy is the default.
+// Breathing and eye openness per mood (0 open, 1 shut).
 const MOODS = {
   idle: { period: 3.0, swell: 2, lid: 0.5 },
   working: { period: 1.4, swell: 2, lid: 0.25, hop: 1.4 },
@@ -24,12 +23,12 @@ const MOODS = {
   eating: { period: 0.9, swell: 1, lid: 0 },
 };
 
-// Dropped files fly into his open mouth, then he shuts it, puffs his cheeks and gulps.
+// Dropped files fly into his mouth, then he closes it and swallows.
 const MEAL_SECONDS = 1.9;
 const SWALLOW_AT = 1.0;
 const FLIGHT_SECONDS = 0.6;
 const MOST_FILES_SHOWN = 3;
-// A file: a page with a folded corner and two lines of text. k outline, w paper, l text.
+// File icon. k outline, w paper, l text.
 const FILE_ICON = [
   "kkkkk..",
   "kwwwkk.",
@@ -42,7 +41,7 @@ const FILE_ICON = [
   "kkkkkkk",
 ];
 
-// A folder: a tab on top, k outline, t tab, y folder.
+// Folder icon. k outline, t tab, y folder.
 const FOLDER_ICON = [
   ".kkkk....",
   "kttttk...",
@@ -57,7 +56,7 @@ const ICON_FILLS = { k: "outline", w: "white", l: "zzz", t: "folderTab", y: "fol
 
 const Z_GLYPH = [[0, 0], [1, 0], [2, 0], [1, 1], [0, 2], [1, 2], [2, 2]];
 
-// The hat he grudgingly wears after being clicked too many times. k outline, p purple, b band, y star.
+// Wizard hat. k outline, p purple, b band, y star.
 const WIZARD_HAT = [
   ".........kk.....",
   "........kpk.....",
@@ -86,7 +85,7 @@ export function startFrog(canvas, mood) {
   const timers = { blinkUntil: 0, nextBlink: 2, yawnUntil: 0, nextYawn: 8, nextGlance: 0 };
   let lookX = 0;
   let lookTarget = 0;
-  // Draws an icon with its top-left at (left, top); skip(y) leaves out rows already swallowed.
+  // Draws an icon at (left, top). skip(y) hides rows that have been swallowed.
   const drawIcon = (icon, left, top, skip = () => false) => {
     icon.forEach((row, y) => [...row].forEach((cell, x) => {
       if (ICON_FILLS[cell] && !skip(top + y)) px(left + x, top + y, COLORS[ICON_FILLS[cell]]);
@@ -99,12 +98,12 @@ export function startFrog(canvas, mood) {
     const style = MOODS[state];
     ctx.clearRect(0, 0, W, H);
 
-    // Breathing: a slow cosine, stepped into whole pixels so the swell reads as heavy puffs.
+    // Breathing: a cosine rounded to whole pixels.
     const phase = (t % style.period) / style.period;
     const breath = (1 - Math.cos(phase * Math.PI * 2)) / 2;
     const swell = Math.round(breath * style.swell);
 
-    // Lazy habits: slow blinks, the odd big yawn, and only now and then a glance at the mouse.
+    // Blinks, the odd yawn, and now and then a glance at the mouse.
     if (t > timers.nextBlink) {
       timers.blinkUntil = t + 0.3;
       timers.nextBlink = t + 3 + Math.random() * 4;
@@ -115,7 +114,7 @@ export function startFrog(canvas, mood) {
     }
     const carrying = mood.carrying();
     if (carrying) {
-      // Eyes on the snack, every frame.
+      // Watch the files.
       lookTarget = Math.max(-1, Math.min(1, Math.round((carrying.at.x - W / 2) / 6)));
     } else if (t > timers.nextGlance) {
       lookTarget = Math.max(-1, Math.min(1, Math.round(mood.look.x / 70)));
@@ -127,7 +126,7 @@ export function startFrog(canvas, mood) {
     const sinceMeal = meal ? t - meal.at : Infinity;
     const gulping = sinceMeal < SWALLOW_AT;
     const chewing = sinceMeal >= SWALLOW_AT && sinceMeal < MEAL_SECONDS;
-    // Eyes shut in contentment while he swallows.
+    // Eyes closed while swallowing.
     const lid = chewing || yawning || t < timers.blinkUntil ? 1 : style.lid;
 
     let hop = 0;
@@ -136,7 +135,7 @@ export function startFrog(canvas, mood) {
       hop = hopPhase < 0.12 ? -2 : hopPhase < 0.24 ? -1 : 0;
     }
 
-    // Body: a squat ellipse that gets wider and flatter on every inhale, plus two eye bumps.
+    // Body: an ellipse that widens and flattens on each breath, plus two eye bumps.
     const ground = 36;
     const cheeks = chewing && sinceMeal < SWALLOW_AT + 0.4 ? 2 : 0;
     const rx = 15 + swell + cheeks;
@@ -166,7 +165,7 @@ export function startFrog(canvas, mood) {
       }
     }
     for (const bump of bumps) px(bump.x - 2, bump.y - 3, COLORS.light);
-    // Little front hands resting on his belly.
+    // Hands.
     for (const side of [-1, 1]) {
       for (const offset of [5, 6, 7]) {
         px(cx + side * offset, ground - 1 + hop, COLORS.shade);
@@ -174,7 +173,7 @@ export function startFrog(canvas, mood) {
       }
     }
 
-    // Eyes: whites, a pupil that sits low, and heavy lids drawn over the top.
+    // Eyes: whites, pupils and lids.
     for (const bump of bumps) {
       const ex = bump.x;
       const ey = bump.y;
@@ -204,7 +203,7 @@ export function startFrog(canvas, mood) {
       }
     }
 
-    // Nostrils and mouth. A lazy half-smirk, or wide open for a yawn or a snack.
+    // Nostrils and mouth: a half smile, or open for a yawn or food.
     px(cx - 2, cy - 3, COLORS.outline);
     px(cx + 2, cy - 3, COLORS.outline);
     const open = gulping ? 4 : yawning ? 3 : state === "excited" ? 3 : state === "attention" ? 1 : 0;
@@ -217,11 +216,11 @@ export function startFrog(canvas, mood) {
       }
     } else {
       for (let x = cx - 8; x <= cx + 7; x += 1) px(x, cy, COLORS.outline);
-      px(cx + 8, cy - 1, COLORS.outline); // the smirk
+      px(cx + 8, cy - 1, COLORS.outline);
     }
 
-    // The dropped files, arcing from where they were let go into his mouth. Rows that have
-    // passed his lip are not drawn, so they look swallowed rather than painted over him.
+    // Dropped files arc from the drop point into his mouth. Rows past his lip aren't drawn, so they
+    // look swallowed.
     if (gulping) {
       const icon = meal.folder ? FOLDER_ICON : FILE_ICON;
       for (let index = 0; index < Math.min(meal.count, MOST_FILES_SHOWN); index += 1) {
@@ -236,12 +235,12 @@ export function startFrog(canvas, mood) {
       }
     }
 
-    // Files being dragged over him hang under the cursor, a small stack bobbing as it is carried.
+    // Files being dragged hang under the cursor and bob slightly.
     if (carrying && !gulping) {
       const icon = carrying.folder ? FOLDER_ICON : FILE_ICON;
       const bob = Math.round(Math.sin(t * 9) * 0.6);
       const shown = Math.min(carrying.count, MOST_FILES_SHOWN);
-      // Centred on the cursor, the rest fanned out up and to the right behind it, all on the canvas.
+      // First file on the cursor, the rest fanned out up and to the right.
       const left = Math.max(0, Math.min(W - icon[0].length - (shown - 1) * 4, carrying.at.x - 3));
       const top = Math.max((shown - 1) * 3 + 1, Math.min(H - icon.length, carrying.at.y - 4));
       for (let index = shown - 1; index >= 0; index -= 1) {
@@ -249,7 +248,7 @@ export function startFrog(canvas, mood) {
       }
     }
 
-    // The wizard hat, resting on his eye bumps, with the odd sparkle at the tip.
+    // Wizard hat, with the odd sparkle.
     if (mood.hat()) {
       const left = cx - 8;
       const top = cy - 7 - 4 - WIZARD_HAT.length + 1;
@@ -262,7 +261,7 @@ export function startFrog(canvas, mood) {
       }
     }
 
-    // Extras for each mood.
+    // Per-mood extras.
     if ((state === "idle" || state === "working") && phase > 0.55 && phase < 0.85) {
       const drift = Math.floor((phase - 0.55) * 10);
       px(cx - 4 - drift, cy - 4 - drift, COLORS.huff);
@@ -280,7 +279,7 @@ export function startFrog(canvas, mood) {
       px(ax, ay + 4, COLORS.alert);
     }
     if (state === "sleepy") {
-      // A snot bubble from one nostril: grows with each slow breath, then pops.
+      // A snot bubble that grows with each breath, then pops.
       const size = Math.floor(((t % 4) / 4) * 3);
       for (let y = -size; y <= size; y += 1) {
         for (let x = -size; x <= size; x += 1) {
@@ -298,6 +297,6 @@ export function startFrog(canvas, mood) {
 
   frame();
   setInterval(frame, FRAME_MILLISECONDS);
-  // Redraw now, between the steppy frames, e.g. so dragged files keep up with the cursor.
+  // Redraw now, between frames, so dragged files keep up with the cursor.
   return { redraw: frame };
 }

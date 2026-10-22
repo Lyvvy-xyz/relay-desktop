@@ -16,12 +16,11 @@ import (
 	"time"
 )
 
-// The desktop buddy talks only to this local API, never to the dashboard: the device token stays
-// inside the agent. The API listens on 127.0.0.1 and every call must carry the secret from a file
-// only this user can read, so other users and other web pages cannot use it.
+// Local API for the desktop buddy, so the device token never leaves the agent. It listens on
+// 127.0.0.1 and every request needs the secret from an owner-only file.
 const localAPIFileName = "local-api.json"
 
-// Only these dashboard routes are reachable through the agent; anything else is refused here.
+// Dashboard routes the buddy can reach through the agent. Everything else is refused.
 var proxiedPath = regexp.MustCompile(`^/(activity|projects|projects/[a-z0-9][a-z0-9-]*/(messages|events|inbox))$`)
 
 type localAPIInfo struct {
@@ -76,9 +75,8 @@ func (api localAPI) allowed(request *http.Request) bool {
 	return request.Host == api.host && subtle.ConstantTimeCompare([]byte(supplied), []byte(api.token)) == 1
 }
 
-// buddyOrigins are where the desktop buddy's pages run (Tauri serves them from its own origin:
-// tauri://localhost on macOS and Linux, http(s)://tauri.localhost on Windows). Only these may
-// call the API from a page; the secret is still required on every call.
+// Origins the buddy's pages are served from: tauri://localhost on macOS and Linux,
+// http(s)://tauri.localhost on Windows. The secret is still required.
 var buddyOrigins = map[string]bool{
 	"tauri://localhost": true, "http://tauri.localhost": true, "https://tauri.localhost": true,
 }
@@ -103,8 +101,8 @@ func (api localAPI) handler() http.Handler {
 		case request.URL.Path == "/status" && request.Method == http.MethodGet:
 			api.status(writer)
 		case request.URL.Path == "/capture" && request.Method == http.MethodPost:
-			// The person at this machine asked for it (show me what's wrong), so the screenshots
-			// switch - which governs projects asking - does not apply.
+			// The user asked for this one, so the screenshots setting (which is for projects)
+			// doesn't apply.
 			image, err := captureScreen()
 			if err != nil {
 				reply(writer, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -113,7 +111,7 @@ func (api localAPI) handler() http.Handler {
 			writer.Header().Set("Content-Type", "image/png")
 			_, _ = writer.Write(image)
 		case request.URL.Path == "/dropped" && request.Method == http.MethodPost:
-			// The person sent these from the buddy: projects may now save changes back to them.
+			// Files the user just sent: projects may now save changes back to them.
 			var body struct {
 				Paths []string `json:"paths"`
 			}
@@ -136,7 +134,7 @@ func (api localAPI) handler() http.Handler {
 
 func (api localAPI) status(writer http.ResponseWriter) {
 	last := api.lastCheck.Load()
-	// Re-read, so folder and screenshot changes made in setup show at once.
+	// Re-read the config so changes made in setup show up straight away.
 	settings, err := loadConfig()
 	if err != nil || settings.Token == "" {
 		settings = api.settings

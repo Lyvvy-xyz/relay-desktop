@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// captureScreen asks the operating system's own tool for a PNG of the whole screen. Every
-// command is fixed; only the temporary output path is passed in.
+// captureScreen takes a PNG of the whole screen with the OS's own tool. The commands are fixed;
+// only the temp output path varies.
 func captureScreen() ([]byte, error) {
 	output, err := os.CreateTemp("", "homelab-screenshot-*.png")
 	if err != nil {
@@ -42,7 +42,7 @@ func runCapture(path string) error {
 	case "darwin":
 		return exec.Command("screencapture", "-x", path).Run()
 	default:
-		// Whichever screenshot tool this desktop has: Wayland, GNOME, then X11.
+		// Try Wayland, then GNOME, then X11.
 		for _, candidate := range [][]string{
 			{"grim", path},
 			{"gnome-screenshot", "-f", path},
@@ -64,12 +64,12 @@ func launchAgentPath() string {
 	return filepath.Join(home, "Library", "LaunchAgents", "lan.homelab.agent.plist")
 }
 
-// stopRunning stops an already-running agent so its executable can be replaced. Nothing running
-// is the normal case, so failures are ignored.
+// stopRunning stops a running agent so its executable can be replaced. Usually nothing is running,
+// so errors are ignored.
 func stopRunning() {
 	switch runtime.GOOS {
 	case "windows":
-		// Never this process: inside the desktop buddy, setup runs as homelab-agent.exe too.
+		// Skip ourselves: setup inside the buddy also runs as homelab-agent.exe.
 		self := fmt.Sprintf("PID ne %d", os.Getpid())
 		_ = exec.Command("taskkill", "/F", "/IM", "homelab-agent.exe", "/FI", self).Run()
 	case "darwin":
@@ -79,14 +79,13 @@ func stopRunning() {
 	}
 }
 
-// installAutostart starts the agent at login rather than as a system service: screenshots need
-// the user's desktop session, and file access should be the user's own, not root's. It also
-// starts it now, in the background.
+// installAutostart runs the agent at login rather than as a system service, since screenshots need
+// the desktop session and file access should be the user's. It also starts it now.
 func installAutostart(executable string) error {
 	switch runtime.GOOS {
 	case "windows":
-		// The per-user Run key needs no administrator rights, unlike a logon scheduled task.
-		// conhost --headless runs the agent with no console window at all.
+		// The per-user Run key needs no admin rights, unlike a scheduled task. conhost --headless
+		// hides the console window.
 		command := fmt.Sprintf(`conhost.exe --headless "%s" run`, executable)
 		if err := exec.Command("reg", "add", windowsRunKey, "/v", "homelab-agent", "/t", "REG_SZ",
 			"/d", command, "/f").Run(); err != nil {

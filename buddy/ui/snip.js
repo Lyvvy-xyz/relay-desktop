@@ -4,7 +4,7 @@ const { invoke } = window.__TAURI__.core;
 const { emitTo } = window.__TAURI__.event;
 const { getCurrentWindow } = window.__TAURI__.window;
 
-// The buddy and panel were just hidden; give the screen a moment to repaint without them.
+// Give the screen a moment to repaint without the buddy and panel.
 const SETTLE_MILLISECONDS = 350;
 const MIN_BOX = 8;
 const CARD_WIDTH = 320;
@@ -20,7 +20,7 @@ function finish(reopenPanel) {
   invoke("end_snip", { reopenPanel });
 }
 
-// Where the screenshot is actually drawn inside the window (object-fit: contain).
+// Where the screenshot sits inside the window (object-fit: contain).
 function imageArea() {
   const scale = Math.min(innerWidth / shot.naturalWidth, innerHeight / shot.naturalHeight);
   const width = shot.naturalWidth * scale;

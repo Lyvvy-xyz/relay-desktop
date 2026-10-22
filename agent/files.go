@@ -24,8 +24,8 @@ func expandHome(path string) (string, error) {
 	return path, nil
 }
 
-// resolveExisting turns a path into its absolute, symlink-free form, so a link inside an
-// approved folder cannot point the agent somewhere else.
+// resolveExisting returns the absolute path with symlinks resolved, so a link inside an approved
+// folder can't point elsewhere.
 func resolveExisting(path string) (string, error) {
 	expanded, err := expandHome(path)
 	if err != nil {
@@ -44,8 +44,8 @@ func within(folder, path string) bool {
 		!filepath.IsAbs(relative)
 }
 
-// approvedPath resolves path and accepts it only inside an approved folder. For a file that does
-// not exist yet (a write), its parent folder is resolved instead and must already exist.
+// approvedPath resolves path and accepts it only inside an approved folder. For a new file, its
+// parent folder must exist and is checked instead.
 func approvedPath(folders []string, path string, mustExist bool) (string, error) {
 	resolved, err := resolveExisting(path)
 	if err != nil && !mustExist && errors.Is(err, os.ErrNotExist) {
@@ -121,10 +121,9 @@ func readFile(folders []string, path string) ([]byte, error) {
 	return content, err
 }
 
-// writeFile never overwrites inside an approved folder: a project putting a file on your machine
-// should not be able to replace one you already have. The exception is what you dropped on the
-// buddy and sent (editable): a project may save its changes back there, and the version it
-// replaces is kept in the agent's replaced folder first.
+// writeFile won't overwrite an existing file in an approved folder. Files the user sent from the
+// buddy (editable) are the exception: projects can save changes back to them, and the old version
+// is kept in the replaced folder first.
 func writeFile(folders, editable []string, path string, content []byte) error {
 	resolved, err := approvedPath(append(append([]string{}, folders...), editable...), path, false)
 	if err != nil {
@@ -150,14 +149,14 @@ func writeFile(folders, editable []string, path string, content []byte) error {
 	return file.Close()
 }
 
-// replacedFolder is where overwritten files are kept; a variable so tests can point it elsewhere.
+// replacedFolder holds overwritten versions. A variable so tests can change it.
 var replacedFolder = func() (string, error) {
 	path, err := configPath()
 	return filepath.Join(filepath.Dir(path), "replaced"), err
 }
 
-// keepReplaced copies a file about to be overwritten into the replaced folder, stamped so every
-// version is kept. A file that does not exist yet has nothing to keep.
+// keepReplaced copies a file into the replaced folder, timestamped, before it's overwritten. Does
+// nothing if the file doesn't exist yet.
 func keepReplaced(path string) error {
 	old, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {

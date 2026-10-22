@@ -1,5 +1,5 @@
-// Claude Code's JSONL transcript lines as chat events: the user's message, the assistant's text,
-// each tool call starting and finishing, and the end of a turn.
+// Turns Claude Code JSONL transcript lines into chat events: user message, assistant text, tool
+// start and end, end of turn.
 const MAX_TEXT_LENGTH = 2000;
 const SUMMARY_INPUT_KEYS = ["command", "file_path", "notebook_path", "pattern", "url", "query", "path"];
 

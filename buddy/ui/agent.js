@@ -1,5 +1,5 @@
-// The one way the buddy's pages reach the Relay server: the agent's local API on 127.0.0.1, with the
-// secret the app reads from the agent's owner-only file. The device token never reaches a page.
+// All requests to the Relay server go through the agent's local API on 127.0.0.1. The device token
+// never reaches the pages.
 const { invoke } = window.__TAURI__.core;
 
 let connection = null;
@@ -38,7 +38,7 @@ export async function agent(path, { method = "GET", body, form, as = "json" } = 
   try {
     response = await fetch(`http://127.0.0.1:${port}${path}`, { method, headers, body: payload });
   } catch {
-    // The agent restarted on a new port, or stopped: read its file again next time.
+    // The agent stopped or restarted on another port; re-read its info next time.
     forgetConnection();
     throw new AgentError("The agent isn't running.");
   }
@@ -49,15 +49,7 @@ export async function agent(path, { method = "GET", body, form, as = "json" } = 
   return as === "blob" ? response.blob() : response.json();
 }
 
-export function timeAgo(unixSeconds) {
-  const seconds = Math.max(0, Date.now() / 1000 - unixSeconds);
-  if (seconds < 60) return "just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
-  return `${Math.floor(seconds / 86400)} d ago`;
-}
-
-// How the buddy says what a project did on this machine.
+// Short description of a project's job for the island.
 export function describeJob(job) {
   const name = String(job.argument || "").split(/[\\/]/).filter(Boolean).pop() || job.argument;
   switch (job.verb) {

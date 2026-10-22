@@ -88,7 +88,7 @@ func TestTheFontsAndFrogAreServedAndOnlyDoneEndsSetup(t *testing.T) {
 	if got := serve(handler, setupRequest("POST", "/api/close", "secret", `{}`)); got.Code != http.StatusOK {
 		t.Fatalf("close: %d", got.Code)
 	}
-	serve(handler, setupRequest("POST", "/api/close", "secret", `{}`)) // a second click is harmless
+	serve(handler, setupRequest("POST", "/api/close", "secret", `{}`))
 	<-finished
 }
 

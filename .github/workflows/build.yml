@@ -1,7 +1,7 @@
 name: Relay Buddy
 
-# Builds the desktop buddy (with the agent bundled inside it) for every desktop, and
-# publishes the installers as the rolling "buddy-latest" release.
+# Builds the buddy (with the agent inside) for each platform and publishes the installers to the
+# rolling buddy-latest release.
 on:
   push:
     branches: [main]
@@ -42,7 +42,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
         run: |
-          # The tests are platform-independent and make symlinks, which Windows runners refuse.
+          # The tests create symlinks, which Windows runners don't allow.
           if [ "$RUNNER_OS" = Linux ]; then GOOS= GOARCH= go test ./...; fi
           go build -trimpath -ldflags="-s -w" \
             -o "../buddy/src-tauri/binaries/homelab-agent-${{ matrix.target }}${{ matrix.suffix }}" .
@@ -73,15 +73,15 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npx tauri icon app-icon.svg
-          # Every build is its own version, so installed buddies can tell they are behind.
+          # A new version per build, so installed copies can tell they're behind.
           config="{\"version\":\"0.3.${{ github.run_number }}\""
-          # Signed update bundles only once the signing key is a repository secret; until then the
-          # installers still build, they just cannot be offered as updates.
+          # Update bundles are only signed when the signing key secret is set. Without it the
+          # installers still build but can't be offered as updates.
           if [ -n "${TAURI_SIGNING_PRIVATE_KEY}" ]; then
             config+=",\"bundle\":{\"createUpdaterArtifacts\":true}"
           fi
           npx tauri build --target ${{ matrix.target }} --config "${config}}"
-          # Both Macs name their update bundle the same; tell them apart before the release merges them.
+          # Both Mac builds name their update bundle the same, so rename them before they're merged.
           for bundle in src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz; do
             [ -e "${bundle}" ] || continue
             renamed="${bundle%.app.tar.gz}_${{ matrix.target }}.app.tar.gz"
@@ -113,8 +113,7 @@ jobs:
           path: installers
           merge-multiple: true
 
-      # The updater's manifest: each platform's signed bundle, at its address in this release. Only
-      # signed builds get one.
+      # Updater manifest: one entry per signed platform bundle.
       - name: Write the update manifest
         run: |
           python3 - "0.3.${{ github.run_number }}" "https://github.com/${{ github.repository }}/releases/download/buddy-latest" <<'EOF'
@@ -130,7 +129,7 @@ jobs:
           for platform, suffix in patterns.items():
               for name in files:
                   if name.endswith(suffix) and f"{name}.sig" in files:
-                      # GitHub stores "Relay Buddy_..." as "Relay.Buddy_...": name it as it will be.
+                      # GitHub turns spaces in asset names into dots.
                       signature = files[f"{name}.sig"].read_text().strip()
                       platforms[platform] = {"signature": signature, "url": f"{sys.argv[2]}/{name.replace(' ', '.')}"}
           if platforms:
@@ -145,7 +144,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release delete buddy-latest --yes --cleanup-tag || true
-          # The artifacts arrive in per-format folders (nsis/, msi/, dmg/...): upload the files.
+          # Artifacts come in per-format folders (nsis/, msi/, dmg/...).
           mapfile -t files < <(find installers -type f)
           gh release create buddy-latest "${files[@]}" --prerelease \
             --target "${{ github.sha }}" --title "Relay Buddy (latest)" \

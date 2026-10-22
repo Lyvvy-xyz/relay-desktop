@@ -1,6 +1,6 @@
 html, body { width: 100%; height: 100%; overflow: hidden; background: #000; cursor: crosshair; user-select: none; }
 .shot { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-/* Everything outside the box is dimmed; the box itself is cut out with a huge shadow. */
+/* Everything outside the box is dimmed with a large box-shadow. */
 .dim { position: fixed; inset: 0; background: rgb(6 12 11 / 45%); }
 .selection {
   position: fixed; border: 2px solid var(--nav-accent); border-radius: 4px;

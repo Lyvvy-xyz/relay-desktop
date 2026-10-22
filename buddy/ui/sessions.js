@@ -1,5 +1,5 @@
-// Incremental feed reducer. The caller supplies observation time; events have no timestamps, so
-// a turn already under way in the first read of history has an unknown start (now = null).
+// Builds session state from events. Events have no timestamps, so the caller passes the time; a
+// turn already running in the first history read has an unknown start (now = null).
 export function deriveSession(previous, events, now) {
   const next = { state: "idle", startedAt: null, endedAt: null, text: "", steps: [], ...previous };
   next.steps = next.steps.map((step) => ({ ...step }));

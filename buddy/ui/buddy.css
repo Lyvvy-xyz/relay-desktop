@@ -1,7 +1,5 @@
-/* The island: a black capsule docked at the top centre of the screen. The window is see-through
-   and sized to the island by the app (dock_island), so only the capsule shows. It is idle (just
-   the frog), shows a status line while a project works, grows into a peek card for an alert, and
-   opens into a drop zone while files are dragged over it. */
+/* The island: a black capsule at the top centre of the screen. The app sizes the transparent
+   window to fit it. States: idle (just the frog), status line, peek card and drop zone. */
 html,
 body {
   margin: 0;
@@ -24,7 +22,7 @@ body {
   background: #050505;
   color: #f5f5f5;
   overflow: hidden;
-  /* buddy.js sets the old and new sizes; this eases between them. */
+  /* buddy.js sets the start and end sizes; this animates between them. */
   transition:
     width 220ms cubic-bezier(0.2, 0.9, 0.25, 1),
     height 220ms cubic-bezier(0.2, 0.9, 0.25, 1),
@@ -86,7 +84,7 @@ body {
 .isle--offline .isle-dot {
   display: block;
 }
-/* What appears inside fades in as the island finishes growing around it. */
+/* Contents fade in once the island has grown. */
 .isle-row,
 .isle-peek,
 .isle-hint,
@@ -98,13 +96,13 @@ body {
     opacity: 0;
   }
 }
-/* A message wraps instead of being cut short. */
+/* Long messages wrap. */
 .isle--message .isle-text {
   max-width: 280px;
   white-space: normal;
 }
 
-/* Idle and untouched: a thin handle at the top edge. */
+/* Idle: a thin handle at the top edge. */
 .isle--hidden {
   width: 100px;
   height: 6px;
@@ -115,7 +113,7 @@ body {
   display: none !important;
 }
 
-/* The peek card takes the island's place. */
+/* The peek card replaces the island's contents. */
 .isle--peek .isle-row {
   display: none;
 }
@@ -152,7 +150,7 @@ body {
   font-size: 12px;
 }
 
-/* Files dragged over it: a bigger target, the frog front and centre with its mouth open. */
+/* Files dragged over: a bigger target with the frog in the middle, mouth open. */
 .isle-hint {
   display: none;
   margin: 0 0 16px;

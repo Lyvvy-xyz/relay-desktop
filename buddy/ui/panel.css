@@ -393,7 +393,7 @@ blockquote {
   color: #7edca0;
 }
 
-/* Wide panel: sessions on the left, the chosen view on the right. */
+/* Two panes: sessions on the left, the selected view on the right. */
 .split {
   display: grid;
   flex: 1;
@@ -426,7 +426,7 @@ blockquote {
   min-height: 0;
   overflow-y: auto;
 }
-/* One line per session in the narrow column; the full step list is a click away. */
+/* One line per session; click for the full step list. */
 .side-pane .step-ticker summary .step__text {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -447,7 +447,7 @@ blockquote {
   max-width: 62ch;
 }
 
-/* Dropping down from the island and folding back into it. */
+/* Open and close animation. */
 .dock,
 .panel-shell {
   transform-origin: 50% 0;
@@ -488,7 +488,7 @@ blockquote {
   }
 }
 
-/* Watching Claude on this computer: Relay-only parts are hidden. */
+/* Claude mode hides the Relay-only parts. */
 [data-source="claude"] [data-tab="activity"],
 [data-source="claude"] [data-tab="send"],
 [data-source="claude"] #show-wrong,
@@ -499,7 +499,7 @@ blockquote {
   display: none;
 }
 
-/* Starting a Claude Code session in a folder, and its permission asks in the chat. */
+/* New Claude Code session form and permission cards. */
 .new-session {
   display: grid;
   gap: 8px;

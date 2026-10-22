@@ -10,7 +10,7 @@ repository = "https://github.com/Lyvvy-xyz/relay-desktop"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# macos-private-api: the buddy's window is see-through, which macOS only allows through it.
+# macos-private-api is needed for the transparent window on macOS.
 tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-shell = "2"
 tauri-plugin-window-state = "2"

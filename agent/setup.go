@@ -21,13 +21,13 @@ import (
 	"time"
 )
 
-// defaultServer is the dashboard address offered on the setup page; empty means ask for it.
+// defaultServer is prefilled on the setup page. Empty means ask.
 var defaultServer = ""
 
 //go:embed setup.html
 var setupPage []byte
 
-// The page's fonts and frog, so setup looks right with no internet connection.
+// Fonts and frog for the setup page, so it works offline.
 //
 //go:embed assets
 var setupAssets embed.FS
@@ -84,13 +84,12 @@ func currentState() (setupState, error) {
 	return state, nil
 }
 
-// setUp serves the setup page on this computer only and opens it in the browser. The page is
-// reachable just from 127.0.0.1, and every call must carry the random token from the opened
-// link, so another website open in the same browser cannot drive it.
+// setUp serves the setup page on 127.0.0.1 and opens it in the browser. Every request needs the
+// token from the opened link, so other sites in the browser can't drive it.
 func setUp() error { return serveSetup(false) }
 
-// serveSetup runs the setup page. inApp is the desktop buddy asking: it shows the page in its
-// own window, so print the address on one machine-readable line instead of opening a browser.
+// serveSetup runs the setup page. With inApp the buddy shows it in its own window, so print the
+// address on one line instead of opening a browser.
 func serveSetup(inApp bool) error {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -119,7 +118,7 @@ func serveSetup(inApp bool) error {
 
 	select {
 	case <-finished:
-		time.Sleep(time.Second) // let the page receive its answer
+		time.Sleep(time.Second)
 	case <-time.After(setupIdleLimit):
 		fmt.Println("Setup was left open too long and has stopped. Double-click the agent to start again.")
 	}
@@ -132,7 +131,7 @@ func setupHandler(host, token string, finished chan struct{}) http.Handler {
 	mux := http.NewServeMux()
 	var closeOnce sync.Once
 	allowed := func(request *http.Request, supplied string) bool {
-		// The Host check stops DNS rebinding; the token stops other pages in the browser.
+		// The Host check stops DNS rebinding; the token stops other pages.
 		return request.Host == host && subtle.ConstantTimeCompare([]byte(supplied), []byte(token)) == 1
 	}
 	mux.HandleFunc("GET /{$}", func(writer http.ResponseWriter, request *http.Request) {
@@ -220,7 +219,7 @@ func setupHandler(host, token string, finished chan struct{}) http.Handler {
 		fmt.Printf("Done: %q is running in the background.\n", settings.Machine)
 		return nil
 	})
-	// Starting the agent leaves the page up for choosing folders; this is the person saying done.
+	// Starting the agent keeps the page open for picking folders. This is the user clicking Done.
 	api("POST /api/close", func(map[string]any) error {
 		closeOnce.Do(func() { close(finished) })
 		return nil
@@ -250,8 +249,8 @@ func openBrowser(address string) {
 	}
 }
 
-// install copies the agent next to its config, so autostart never points into Downloads,
-// then registers and starts it.
+// install copies the agent next to its config (so autostart doesn't point into Downloads),
+// registers it and starts it.
 func install() error {
 	target, err := installedPath()
 	if err != nil {

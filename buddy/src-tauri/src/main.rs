@@ -1,7 +1,5 @@
-// The Relay desktop buddy: a small animated character that sits on the desktop and is the face of
-// the Relay agent on this machine. All talking to the Relay server goes through the agent's local API
-// (from the pages, with its secret); this Rust side only manages windows, runs the bundled agent
-// for setup, and reads files that were dropped on the buddy.
+// Relay desktop buddy. The pages talk to the Relay server through the agent's local API; this side
+// manages windows, runs the bundled agent for setup and reads dropped files.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{
@@ -27,29 +25,29 @@ use tauri_plugin_shell::{
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024;
-// A dropped folder is sent file by file; these keep one drop from being a whole disk.
+// Limits for a dropped folder, which is sent file by file.
 const MAX_FOLDER_FILES: usize = 2000;
 const MAX_FOLDER_BYTES: u64 = 100 * 1024 * 1024;
 const AGENT: &str = "homelab-agent";
-// The island's size before its page has measured itself: the idle handle.
+// Island size before the page has measured itself (the idle handle).
 const IDLE_ISLAND: (f64, f64) = (360.0, 6.0);
 const FIRST_RUN_MARKER: &str = "first-run-done";
 const AGENT_VERSION_MARKER: &str = "agent-version";
 const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
-// Watching Claude on this computer: transcripts touched this recently count as sessions, and a
-// session's first read takes this much of the end of its transcript as history.
+// Claude transcripts modified this recently count as live sessions. A session's first read loads
+// this much of the end as history.
 const CLAUDE_SESSION_AGE: Duration = Duration::from_secs(6 * 60 * 60);
 const CLAUDE_HISTORY_BYTES: u64 = 256 * 1024;
 const CLAUDE_CWD_SCAN_BYTES: u64 = 64 * 1024;
 
 #[derive(Default)]
 struct BuddyState {
-    // Only files dropped on the buddy may be read: the pages cannot name any other path.
+    // Pages can only read files that were dropped on the buddy.
     dropped: Mutex<HashSet<PathBuf>>,
     setup: Mutex<Option<CommandChild>>,
-    // The newer version found by the last check, held until the person says to install it.
+    // Update found by the last check, kept until the user installs it.
     update: Mutex<Option<Update>>,
-    // Claude Code processes the buddy is talking to, by run id.
+    // Running Claude Code processes, by run id.
     claude: Mutex<HashMap<String, ClaudeRun>>,
 }
 
@@ -72,7 +70,7 @@ fn agent_dir() -> Result<PathBuf, String> {
 
 const AGENT_DOWN: &str = "The agent is not running yet.";
 
-/// Where the running agent's local API listens, and its secret.
+/// Port and secret of the running agent's local API.
 #[tauri::command]
 fn local_api() -> Result<LocalApi, String> {
     let raw = fs::read_to_string(agent_dir()?.join("local-api.json"))
@@ -89,8 +87,8 @@ fn is_paired() -> bool {
         .unwrap_or(false)
 }
 
-/// True when path is a dropped file, or a file inside a dropped folder once links are followed,
-/// so a link inside a dropped folder cannot reach anywhere else.
+/// True if path was dropped, or is inside a dropped folder after resolving links, so a link can't
+/// escape the folder.
 fn was_dropped(path: &Path, state: &BuddyState) -> bool {
     let dropped = state.dropped.lock().unwrap();
     if dropped.contains(path) {
@@ -122,7 +120,7 @@ fn read_dropped_file(path: String, state: tauri::State<BuddyState>) -> Result<Re
     fs::read(&path).map(Response::new).map_err(|error| error.to_string())
 }
 
-/// Which of these paths are folders, for the frog to draw what is being dragged over him.
+/// Which paths are folders, so the frog can draw them.
 #[tauri::command]
 fn folder_flags(paths: Vec<String>) -> Vec<bool> {
     paths.iter().map(|path| Path::new(path).is_dir()).collect()
@@ -131,11 +129,11 @@ fn folder_flags(paths: Vec<String>) -> Vec<bool> {
 #[derive(Serialize)]
 struct FolderFile {
     path: PathBuf,
-    // Inside the folder, starting with the folder's own name, always with forward slashes.
+    // Path inside the folder, starting with the folder's name, with forward slashes.
     relative: String,
 }
 
-/// Every file in a dropped folder, sub-folders included. Links are skipped, not followed.
+/// Every file in a dropped folder, recursively. Links are skipped.
 #[tauri::command]
 fn dropped_folder_files(
     path: String,
@@ -188,8 +186,7 @@ fn main_screen(app: &AppHandle) -> Result<Monitor, String> {
         .ok_or_else(|| "No screen found.".to_string())
 }
 
-/// Puts a window at the top centre of the main screen, below a menu bar if there is one: the buddy
-/// lives there as an island, and the panel drops down from the same spot.
+/// Puts a window at the top centre of the main screen, below the menu bar if there is one.
 fn place_top_centre(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
     let screen = main_screen(app)?;
     let area = screen.work_area();
@@ -200,7 +197,7 @@ fn place_top_centre(app: &AppHandle, window: &WebviewWindow) -> Result<(), Strin
         .map_err(|e| e.to_string())
 }
 
-/// Sizes the buddy's island (logical pixels, as its page measures them) and docks it again.
+/// Resizes the island (logical pixels) and re-centres it.
 fn dock(app: &AppHandle, width: f64, height: f64) -> Result<(), String> {
     let buddy = window(app, "buddy")?;
     let scale = main_screen(app)?.scale_factor();
@@ -215,7 +212,7 @@ fn dock_island(app: AppHandle, width: f64, height: f64) -> Result<(), String> {
     dock(&app, width.clamp(40.0, 600.0), height.clamp(4.0, 400.0))
 }
 
-/// The panel folds back up into the island.
+/// Hides the panel and shows the island again.
 fn collapse(app: &AppHandle) -> Result<(), String> {
     window(app, "panel")?.hide().map_err(|e| e.to_string())?;
     window(app, "buddy")?.show().map_err(|e| e.to_string())?;
@@ -223,7 +220,7 @@ fn collapse(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// The island's window is wider than the island; outside it, clicks go through to what's beneath.
+/// Lets clicks outside the island pass through its window.
 #[tauri::command]
 fn island_click_through(app: AppHandle, through: bool) -> Result<(), String> {
     window(&app, "buddy")?
@@ -241,7 +238,7 @@ fn show_panel_window(app: &AppHandle, tab: Option<&str>) -> Result<(), String> {
     place_top_centre(app, &panel)?;
     panel.show().map_err(|e| e.to_string())?;
     panel.set_focus().map_err(|e| e.to_string())?;
-    // While it is open, the panel's own tab is the island.
+    // The island is hidden while the panel is open.
     window(app, "buddy")?.hide().map_err(|e| e.to_string())?;
     app.emit_to("panel", "panel:shown", ()).map_err(|e| e.to_string())?;
     if let Some(tab) = tab {
@@ -265,8 +262,8 @@ fn show_panel(app: AppHandle, tab: Option<String>) -> Result<(), String> {
     show_panel_window(&app, tab.as_deref())
 }
 
-/// Where the mouse is relative to the island's top-left corner (physical pixels); the page knows
-/// where the face is inside it, so its eyes can follow the mouse anywhere on screen.
+/// Mouse position relative to the island window's top-left corner, in physical pixels. The page
+/// uses it for the frog's eyes.
 #[tauri::command]
 fn cursor_from_buddy(app: AppHandle) -> Result<(f64, f64), String> {
     let buddy = window(&app, "buddy")?;
@@ -275,9 +272,8 @@ fn cursor_from_buddy(app: AppHandle) -> Result<(f64, f64), String> {
     Ok((cursor.x - at.x as f64, cursor.y - at.y as f64))
 }
 
-/// "Show me what's wrong": hide the buddy and panel, then open a hidden full-screen window on the
-/// buddy's screen. That page captures the screen first and only then shows itself, so neither
-/// the buddy nor the overlay ends up in the picture.
+/// Show me what's wrong: hides the buddy and panel and opens a hidden full-screen window. The page
+/// takes the screenshot before showing itself, so neither ends up in it.
 #[tauri::command]
 fn start_snip(app: AppHandle) -> Result<(), String> {
     let buddy = window(&app, "buddy")?;
@@ -319,8 +315,8 @@ fn end_snip(app: AppHandle, reopen_panel: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// Opens the agent's own setup page in an app window. The bundled agent serves it and prints its
-/// address; when setup finishes the agent exits, the window closes, and every page is told.
+/// Opens the agent's setup page in a window. The bundled agent serves it and prints the address;
+/// when the agent exits the window closes and every page is told.
 #[tauri::command]
 fn open_setup(app: AppHandle, state: tauri::State<BuddyState>) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window("setup") {
@@ -365,18 +361,17 @@ fn open_setup(app: AppHandle, state: tauri::State<BuddyState>) -> Result<(), Str
     Ok(())
 }
 
-/// Opens a link from a chat reply in the default browser; a plain link would navigate the panel
-/// itself away. Only web links: the text came from a project, so nothing that runs a program.
+/// Opens a link from a chat reply in the browser. Only http(s), since the text comes from a
+/// project.
 #[tauri::command]
 fn open_link(app: AppHandle, url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("Only web links can be opened.".into());
     }
-    #[allow(deprecated)] // the opener plugin replaces this; shell is already a dependency
+    #[allow(deprecated)]
     app.shell().open(url, None).map_err(|e| e.to_string())
 }
 
-/// Starts the installed agent again (it copies itself, registers to start at login, and runs).
 fn claude_projects_dir() -> Result<PathBuf, String> {
     Ok(dirs::home_dir().ok_or("No home folder found.")?.join(".claude").join("projects"))
 }
@@ -390,7 +385,7 @@ struct ClaudeSession {
     modified: u64,
 }
 
-/// The folder a Claude session runs in, from the "cwd" its transcript records.
+/// Working folder of a Claude session, from the cwd in its transcript.
 fn claude_session_cwd(transcript: &Path) -> Option<String> {
     let mut head = Vec::new();
     fs::File::open(transcript).ok()?.take(CLAUDE_CWD_SCAN_BYTES).read_to_end(&mut head).ok()?;
@@ -400,8 +395,7 @@ fn claude_session_cwd(transcript: &Path) -> Option<String> {
     })
 }
 
-/// For watching Claude on this computer instead of Relay: the newest transcript in each of
-/// Claude Code's project folders, if it was touched recently.
+/// The newest transcript in each Claude Code project folder, if it was modified recently.
 #[tauri::command]
 fn claude_sessions() -> Result<Vec<ClaudeSession>, String> {
     let Ok(folders) = fs::read_dir(claude_projects_dir()?) else {
@@ -420,7 +414,7 @@ fn claude_sessions() -> Result<Vec<ClaudeSession>, String> {
         if now.duration_since(modified).unwrap_or_default() > CLAUDE_SESSION_AGE {
             continue;
         }
-        // Without a folder there is nowhere to continue the session from.
+        // Can't resume a session without its folder.
         let Some(cwd) = claude_session_cwd(&path) else { continue };
         let name = cwd.rsplit(['/', '\\']).find(|part| !part.is_empty()).unwrap_or(cwd.as_str()).to_string();
         let id = path.file_stem().map(|stem| stem.to_string_lossy().into_owned()).unwrap_or_default();
@@ -441,9 +435,8 @@ struct TranscriptLines {
     next: u64,
 }
 
-/// Whole lines of a Claude transcript from byte `from` on; without `from`, or when the file
-/// has shrunk since, the last stretch of it as history. Only files under Claude's own projects
-/// folder can be read.
+/// Complete lines of a Claude transcript from byte `from`. Without `from`, or if the file shrank,
+/// the tail as history. Only reads under Claude's projects folder.
 #[tauri::command]
 fn claude_lines(transcript: String, from: Option<u64>) -> Result<TranscriptLines, String> {
     let root = claude_projects_dir()?.canonicalize().map_err(|e| e.to_string())?;
@@ -460,18 +453,18 @@ fn claude_lines(transcript: String, from: Option<u64>) -> Result<TranscriptLines
     file.seek(SeekFrom::Start(start)).map_err(|e| e.to_string())?;
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).map_err(|e| e.to_string())?;
-    // Only whole lines: one Claude is still writing is left for the next read.
+    // Leave a partly written last line for the next read.
     let end = bytes.iter().rposition(|byte| *byte == b'\n').map_or(0, |at| at + 1);
     let mut lines: Vec<String> = String::from_utf8_lossy(&bytes[..end]).lines().map(str::to_string).collect();
-    // History that starts mid-file starts mid-line.
+    // Drop the partial first line when starting mid-file.
     if start > 0 && from != Some(start) && !lines.is_empty() {
         lines.remove(0);
     }
     Ok(TranscriptLines { lines, next: start + end as u64 })
 }
 
-// Where Claude Code may be: on the PATH (as claude.cmd too, for an npm install on Windows), or
-// where its installers put it, since apps started from a macOS Dock don't see a shell's PATH.
+// Places Claude Code may be installed. Apps launched from the macOS Dock don't get the shell PATH,
+// so the usual install locations are checked too.
 fn claude_programs() -> Vec<PathBuf> {
     let mut programs = vec![PathBuf::from("claude")];
     if cfg!(windows) {
@@ -489,8 +482,8 @@ fn spawn_claude(cwd: &Path, resume: Option<&str>) -> Result<Child, String> {
         let mut command = Command::new(&program);
         command
             .args(["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"])
-            // Edits inside the folder go ahead; anything else that needs an OK is asked over
-            // the stream, and the island shows Allow once / Deny.
+            // Edits inside the folder are allowed; other permission requests come over the stream
+            // and show in the island.
             .args(["--permission-mode", "acceptEdits", "--permission-prompt-tool", "stdio"])
             .current_dir(cwd)
             .stdin(Stdio::piped())
@@ -502,7 +495,7 @@ fn spawn_claude(cwd: &Path, resume: Option<&str>) -> Result<Child, String> {
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW: no console flashing up
+            command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
         }
         match command.spawn() {
             Ok(child) => return Ok(child),
@@ -519,8 +512,8 @@ struct ClaudeLine {
     line: String,
 }
 
-/// Starts Claude Code in `cwd` for the buddy to talk to, continuing session `resume` if given.
-/// Every line it prints goes to the pages as a "claude:line" event; "claude:exit" when it ends.
+/// Starts Claude Code in `cwd`, resuming `resume` if given. Each output line is emitted as
+/// claude:line, then claude:exit when it ends.
 #[tauri::command]
 fn claude_start(
     app: AppHandle,
@@ -556,7 +549,7 @@ fn claude_start(
     Ok(run)
 }
 
-/// Sends Claude Code one line: a message from the person, or their answer to a permission ask.
+/// Writes one message or permission answer to Claude Code.
 #[tauri::command]
 fn claude_send(state: tauri::State<BuddyState>, run: String, message: serde_json::Value) -> Result<(), String> {
     let kind = message.get("type").and_then(|kind| kind.as_str()).unwrap_or("");
@@ -587,6 +580,7 @@ fn claude_stop(app: AppHandle, run: String) {
     stop_claude(&app, Some(&run));
 }
 
+/// Reinstalls and restarts the agent (it copies itself, registers for login and runs).
 #[tauri::command]
 async fn repair_agent(app: AppHandle) -> Result<(), String> {
     let output = app
@@ -607,15 +601,15 @@ async fn repair_agent(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn quit(app: AppHandle) {
-    // Claude Code started from the buddy would otherwise outlive it.
+    // Otherwise Claude Code would outlive the app.
     stop_claude(&app, None);
     app.exit(0);
 }
 
-/// Asks this repository's buddy-latest GitHub release (the endpoint in tauri.conf.json) whether a
-/// newer buddy is out. Every installer it offers must carry this build's signing key, or the
-/// updater refuses it.
-async fn find_update(app: &AppHandle) -> Result<Option<String>, String> {
+/// Checks the buddy-latest GitHub release for a newer version. The updater rejects anything not
+/// signed with this build's key.
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<Option<String>, String> {
     let update = app
         .updater()
         .map_err(|e| e.to_string())?
@@ -634,12 +628,7 @@ async fn find_update(app: &AppHandle) -> Result<Option<String>, String> {
     Ok(version)
 }
 
-#[tauri::command]
-async fn check_update(app: AppHandle) -> Result<Option<String>, String> {
-    find_update(&app).await
-}
-
-/// Installs the update the last check found; on Windows the installer closes the app itself.
+/// Installs the update found by the last check. On Windows the installer closes the app.
 #[tauri::command]
 async fn install_update(app: AppHandle) -> Result<(), String> {
     let update = app.state::<BuddyState>().update.lock().unwrap().take();
@@ -651,11 +640,11 @@ async fn install_update(app: AppHandle) -> Result<(), String> {
     app.restart();
 }
 
-/// Checks for a newer buddy soon after start and then every few hours, and asks the person.
+/// Checks for updates 30 seconds after start, then every few hours.
 fn watch_for_updates(app: AppHandle) {
     thread::spawn(move || loop {
         thread::sleep(Duration::from_secs(30));
-        if let Ok(Some(version)) = tauri::async_runtime::block_on(find_update(&app)) {
+        if let Ok(Some(version)) = tauri::async_runtime::block_on(check_update(app.clone())) {
             let _ = app.emit_to("panel", "panel:update", &version);
             let text = format!("Version {version} is out. Click me to update.");
             let _ = app.emit_to("buddy", "buddy:say", serde_json::json!({ "text": text, "attention": true }));
@@ -664,8 +653,8 @@ fn watch_for_updates(app: AppHandle) {
     });
 }
 
-/// True the first time this install of the buddy runs, even if an older agent left settings
-/// behind: those settings may be stale, so setup is offered once regardless.
+/// True on the first run of this install. Settings left by an older agent may be stale, so setup is
+/// offered once anyway.
 fn first_run(app: &AppHandle) -> bool {
     let Ok(directory) = app.path().app_data_dir() else {
         return false;
@@ -678,8 +667,8 @@ fn first_run(app: &AppHandle) -> bool {
     true
 }
 
-/// The agent runs from its own copy, which only setup refreshes; after the buddy updates itself,
-/// put the agent bundled with this version in its place once, so agent fixes arrive too.
+/// The agent runs from its own copy, which only setup replaces. After the buddy updates, reinstall
+/// the bundled agent once so it's updated too.
 fn refresh_agent_after_update(app: &AppHandle) {
     let Ok(directory) = app.path().app_data_dir() else {
         return;
@@ -697,11 +686,11 @@ fn refresh_agent_after_update(app: &AppHandle) {
     });
 }
 
-// How long the frog's eating animation runs (MEAL_SECONDS in buddy.js).
+// Length of the frog's eating animation (MEAL_SECONDS in buddy.js).
 const MEAL: Duration = Duration::from_millis(1900);
 
-// A drop on the island opens the panel once the frog has eaten; a drop on the open panel goes
-// straight in.
+// Drops on the island wait for the frog to finish eating before the panel opens. Drops on the panel
+// go straight in.
 fn files_dropped(app: &AppHandle, label: &str, paths: &[PathBuf]) {
     app.state::<BuddyState>()
         .dropped
@@ -727,8 +716,8 @@ fn main() {
                 .build(),
         )
         .manage(BuddyState::default())
-        // Which of the two a drop arrives as depends on the Tauri version and platform, so both are
-        // taken; a repeat is harmless because the dropped set and the panel's list ignore duplicates.
+        // Depending on the platform a drop arrives as a webview or a window event, so both are
+        // handled. Duplicates are ignored later on.
         .on_webview_event(|webview, event| {
             if let WebviewEvent::DragDrop(DragDropEvent::Drop { paths, .. }) = event {
                 if matches!(webview.label(), "buddy" | "panel") {
@@ -742,7 +731,7 @@ fn main() {
                     files_dropped(window.app_handle(), window.label(), paths);
                 }
             }
-            // A closed setup window means setup was abandoned: stop the agent serving it.
+            // Setup window closed early: stop the agent serving it.
             if window.label() == "setup" && matches!(event, WindowEvent::Destroyed) {
                 if let Some(child) = window.state::<BuddyState>().setup.lock().unwrap().take() {
                     let _ = child.kill();
@@ -751,7 +740,7 @@ fn main() {
         })
         .setup(|app| {
             let handle = app.handle().clone();
-            // The island's page shows its window once it has drawn itself, so it never flashes.
+            // The page shows the window after its first draw, so it doesn't flash.
             dock(&handle, IDLE_ISLAND.0, IDLE_ISLAND.1)?;
             watch_for_updates(handle.clone());
             if first_run(&handle) || !is_paired() {

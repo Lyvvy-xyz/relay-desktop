@@ -1,7 +1,6 @@
-// homelab-agent lets Relay projects reach this machine: list, read and write files inside
-// folders approved here, and take screenshots if switched on here. It connects out to the
-// dashboard and never listens on a port. What it may touch lives in a local config file the
-// server cannot change, so a compromised server cannot widen it.
+// homelab-agent lets Relay projects list, read and write files in folders approved on this machine,
+// and take screenshots if enabled. It connects out to the server and only listens on 127.0.0.1 for
+// the buddy. Permissions live in a local config the server can't change.
 package main
 
 import (
@@ -51,8 +50,7 @@ type config struct {
 	Dropped     []dropped `json:"dropped,omitempty"`
 }
 
-// dropped is a file or folder the person dropped on the buddy and sent to a project: projects
-// may read it and save their changes back to it until the grant runs out.
+// dropped is a file or folder sent from the buddy. Projects can read and edit it until Until.
 type dropped struct {
 	Path  string    `json:"path"`
 	Until time.Time `json:"until"`
@@ -60,7 +58,7 @@ type dropped struct {
 
 const droppedFor = 7 * 24 * time.Hour
 
-// editable is every dropped path whose grant has not run out.
+// editable returns the dropped paths whose grant hasn't expired.
 func (settings config) editable(now time.Time) []string {
 	paths := []string{}
 	for _, item := range settings.Dropped {
@@ -71,7 +69,7 @@ func (settings config) editable(now time.Time) []string {
 	return paths
 }
 
-// grantDropped lets projects edit these paths for droppedFor from now, and forgets lapsed grants.
+// grantDropped makes paths editable for droppedFor and clears expired grants.
 func grantDropped(paths []string, now time.Time) error {
 	settings, err := loadConfig()
 	if err != nil {
@@ -130,14 +128,14 @@ func saveConfig(saved config) error {
 	if err != nil {
 		return err
 	}
-	// The device token is in here: owner-only, like an SSH key.
+	// Holds the device token, so owner-only.
 	return os.WriteFile(path, raw, 0o600)
 }
 
 func main() {
 	log.SetFlags(log.LstdFlags)
-	// No arguments means someone double-clicked it: walk them through setup in the window,
-	// and keep the window open at the end so the outcome can be read.
+	// No arguments means it was double-clicked: run guided setup and keep the window open at the
+	// end.
 	if len(os.Args) == 1 {
 		if err := setUp(); err != nil {
 			fmt.Println("\nSetup did not finish:", err)
@@ -182,8 +180,8 @@ func dispatch(arguments []string) error {
 
 func pair(settings config, server, code string) error {
 	server = strings.TrimRight(server, "/")
-	// Redirects are not followed: an address behind a sign-in page redirects to it, and following
-	// would read the sign-in page as the answer.
+	// Don't follow redirects: a sign-in page in front of the server redirects, and its page would
+	// be read as the reply.
 	client := &http.Client{
 		Timeout:       requestTimeout,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
@@ -330,7 +328,7 @@ func (worker agent) handle(next job) {
 }
 
 func (worker agent) perform(next job) ([]byte, error) {
-	// Re-read, so folders, screenshots and drops changed since the agent started apply at once.
+	// Re-read the config so changes since startup apply immediately.
 	settings, err := loadConfig()
 	if err != nil || settings.Token == "" {
 		settings = worker.settings
