@@ -103,7 +103,7 @@ func TestAnAddressBehindASignInPageSaysSoInsteadOfPairing(t *testing.T) {
 	}))
 	defer signIn.Close()
 	err := pair(config{}, signIn.URL, "ABCD2345")
-	if err == nil || !strings.Contains(err.Error(), "home network") {
+	if err == nil || !strings.Contains(err.Error(), "Check the address") {
 		t.Fatalf("got %v", err)
 	}
 }

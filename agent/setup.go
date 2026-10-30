@@ -185,7 +185,7 @@ func setupHandler(host, token string, finished chan struct{}) http.Handler {
 			server = defaultServer
 		}
 		if server == "" {
-			return errors.New("type the dashboard address, such as http://192.0.2.10:3000")
+			return errors.New("type the dashboard address, such as https://dashboard.example.com or http://192.0.2.10:3000")
 		}
 		return pair(settings, server, code)
 	})

@@ -193,7 +193,7 @@ func pair(settings config, server, code string) error {
 	defer response.Body.Close()
 	if !strings.HasPrefix(response.Header.Get("Content-Type"), "application/json") {
 		return fmt.Errorf("%s isn't the dashboard itself (it may be behind a sign-in page), so it can't pair. "+
-			"Use the dashboard's address on your home network, like http://192.0.2.10:3000", server)
+			"Check the address: the dashboard's own, like https://dashboard.example.com or http://192.0.2.10:3000", server)
 	}
 	var reply struct {
 		Machine string `json:"machine"`
