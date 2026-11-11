@@ -12,7 +12,7 @@ assert.deepEqual(
     { type: "text", text: "Looking." },
     { type: "tool_use", id: "t1", name: "Edit", input: { file_path: "buddy/ui/panel.css\nmore" } },
   ] } })),
-  [{ kind: "text", text: "Looking." }, { kind: "tool_start", id: "t1", tool: "Edit", summary: "buddy/ui/panel.css" }],
+  [{ kind: "text", text: "Looking." }, { kind: "tool_start", id: "t1", tool: "Edit", summary: "panel.css" }],
 );
 assert.deepEqual(
   eventsInLine(line({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", is_error: true }] } })),
@@ -25,3 +25,5 @@ assert.deepEqual(
 assert.equal(eventsInLine(line({ type: "assistant", message: { content: [{ type: "tool_use", id: "t2", name: "Task", input: {} }] } }))[0].summary, "Task");
 assert.equal(eventsInLine(line({ type: "user", message: { content: "x".repeat(3000) } }))[0].text.length, 2000);
 console.log("Transcript event tests passed.");
+const bash = { type: "tool_use", id: "t3", name: "Bash", input: { command: "cd /w && grep -rn x .", description: "Search for x" } };
+assert.equal(eventsInLine(line({ type: "assistant", message: { content: [bash] } }))[0].summary, "Search for x");

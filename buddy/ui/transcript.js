@@ -1,10 +1,17 @@
 // Turns Claude Code JSONL transcript lines into chat events: user message, assistant text, tool
 // start and end, end of turn.
 const MAX_TEXT_LENGTH = 2000;
-const SUMMARY_INPUT_KEYS = ["command", "file_path", "notebook_path", "pattern", "url", "query", "path"];
+// Claude Code's own plain-language description of a command or subagent reads better than the
+// command itself, so it comes first. Files are shown by name alone.
+const SUMMARY_INPUT_KEYS = ["description", "command", "pattern", "url", "query", "path"];
+const FILE_INPUT_KEYS = ["file_path", "notebook_path"];
 
 export function summary(tool, input) {
   if (input && typeof input === "object") {
+    for (const key of FILE_INPUT_KEYS) {
+      const value = input[key];
+      if (typeof value === "string" && value) return value.trim().split("\n")[0].split("/").pop().slice(0, MAX_TEXT_LENGTH);
+    }
     for (const key of SUMMARY_INPUT_KEYS) {
       const value = input[key];
       if (typeof value === "string" && value) return value.trim().split("\n")[0].slice(0, MAX_TEXT_LENGTH);
