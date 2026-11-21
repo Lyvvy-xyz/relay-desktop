@@ -41,6 +41,21 @@ const (
 `
 )
 
+// Set at build time (-ldflags -X). With them, Cloudflare Access in front of the dashboard lets
+// the agent through to /agent, where the device token or pairing code is still checked.
+var (
+	accessClientID     string
+	accessClientSecret string
+)
+
+func withAccessCredentials(request *http.Request) *http.Request {
+	if accessClientID != "" && accessClientSecret != "" {
+		request.Header.Set("CF-Access-Client-Id", accessClientID)
+		request.Header.Set("CF-Access-Client-Secret", accessClientSecret)
+	}
+	return request
+}
+
 type config struct {
 	Server      string    `json:"server"`
 	Token       string    `json:"token"`
@@ -186,7 +201,13 @@ func pair(settings config, server, code string) error {
 		Timeout:       requestTimeout,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	response, err := client.PostForm(server+"/agent/pair", url.Values{"code": {code}})
+	request, err := http.NewRequest(http.MethodPost, server+"/agent/pair",
+		strings.NewReader(url.Values{"code": {code}}.Encode()))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := client.Do(withAccessCredentials(request))
 	if err != nil {
 		return err
 	}
@@ -293,7 +314,7 @@ func (worker agent) request(method, path string, body io.Reader, contentType str
 	if contentType != "" {
 		request.Header.Set("Content-Type", contentType)
 	}
-	return worker.client.Do(request)
+	return worker.client.Do(withAccessCredentials(request))
 }
 
 func (worker agent) nextJob() (*job, error) {

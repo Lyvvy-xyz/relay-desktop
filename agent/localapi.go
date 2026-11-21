@@ -160,7 +160,7 @@ func (api localAPI) forward(writer http.ResponseWriter, request *http.Request) {
 	if contentType := request.Header.Get("Content-Type"); contentType != "" {
 		outgoing.Header.Set("Content-Type", contentType)
 	}
-	response, err := api.client.Do(outgoing)
+	response, err := api.client.Do(withAccessCredentials(outgoing))
 	if err != nil {
 		reply(writer, http.StatusBadGateway, map[string]string{"error": "the dashboard is not reachable: " + err.Error()})
 		return

@@ -41,10 +41,13 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           # The tests create symlinks, which Windows runners don't allow.
           if [ "$RUNNER_OS" = Linux ]; then GOOS= GOARCH= go test ./...; fi
-          go build -trimpath -ldflags="-s -w" \
+          go build -trimpath \
+            -ldflags="-s -w -X main.accessClientID=$CF_ACCESS_CLIENT_ID -X main.accessClientSecret=$CF_ACCESS_CLIENT_SECRET" \
             -o "../buddy/src-tauri/binaries/homelab-agent-${{ matrix.target }}${{ matrix.suffix }}" .
 
       - name: Linux webview libraries
